@@ -1,4 +1,4 @@
-from pdf_loader import load_pdf
+from document_loader import extract_text
 from chunker import chunk_text
 from embedding import embed_chunks, embed_query
 from vector_store import build_index
@@ -16,7 +16,7 @@ class RAGAssistant:
         overlap=50,
     ):
 
-        text = load_pdf(pdf_path)
+        text = extract_text(pdf_path)
 
         self.chunks = chunk_text(
             text,
