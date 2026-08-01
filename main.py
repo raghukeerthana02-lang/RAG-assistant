@@ -34,11 +34,6 @@ def home():
     }
 @app.post("/chat",response_model=ChatResponse)
 def chat(request:ChatRequest):
-    if rag is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Please upload a PDF first."
-        )
     rag = rags.get(request.document_id)
 
     if rag is None:
@@ -53,7 +48,6 @@ def chat(request:ChatRequest):
 
 @app.post("/upload")
 def upload_pdf(file: UploadFile=File(...)):
-    global rag
     ALLOWED_EXTENSIONS = {
     ".pdf",
     ".docx",
@@ -78,12 +72,14 @@ def upload_pdf(file: UploadFile=File(...)):
 
     document_id = len(documents) + 1
 
-    rags[document_id] = RAGAssistant(temp_path)
+    rag = RAGAssistant(temp_path)
+    rags[document_id] = rag
     documents.append(
     {
         "id": document_id,
         "filename": file.filename,
-        "file_type": extension[1:]
+        "file_type": extension[1:],
+        "path": temp_path
     }
 )
 
@@ -107,7 +103,8 @@ def get_documents():
         {
             "id": doc["id"],
             "filename": doc["filename"],
-            "file_type": doc["file_type"]
+            "file_type": doc["file_type"],
+            "path": doc["path"]
         }
         for doc in documents
     ]
