@@ -6,6 +6,7 @@ import RightSidebar from "./components/RightSidebar";
 export default function App() {
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+  const [selectedDocument, setSelectedDocument] = useState<number | null>(null);
 
   return (
     <div className="h-screen bg-gradient-to-br from-zinc-950 via-zinc-950 to-black text-zinc-100 flex overflow-hidden">
@@ -41,7 +42,10 @@ export default function App() {
         }`}
       >
         <div className={`h-full w-80 overflow-hidden ${rightOpen ? "" : "invisible"}`}>
-          <RightSidebar />
+          <RightSidebar
+              selectedDocument={selectedDocument}
+              setSelectedDocument={setSelectedDocument}
+          />
         </div>
 
         <button

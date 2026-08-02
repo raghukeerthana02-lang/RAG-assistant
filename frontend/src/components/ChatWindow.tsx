@@ -9,18 +9,20 @@ export default function ChatWindow() {
         Chat
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+        <div className="w-[90%] max-w-4xl mx-auto space-y-6">
 
-        <MessageBubble
-          isUser={true}
-          message="What is Deep Learning?"
-        />
+          <MessageBubble
+            isUser={true}
+            message="What is Deep Learning?"
+          />
 
-        <MessageBubble
-          isUser={false}
-          message="Deep learning is a subset of machine learning that uses neural networks with multiple layers...Deep learning is a subset of machine learning that uses neural networks with multiple layers...Deep learning is a subset of machine learning that uses neural networks with multiple layers...Deep learning is a subset of machine learning that uses neural networks with multiple layers...Deep learning is a subset of machine learning that uses neural networks with multiple layers... "
-        />
+          <MessageBubble
+            isUser={false}
+            message="Deep learning is a subset of machine learning that uses neural networks with multiple layers..."
+          />
 
+        </div>
       </div>
 
       <ChatInput />

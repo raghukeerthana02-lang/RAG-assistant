@@ -1,24 +1,97 @@
-export default function RightSidebar() {
+import { useEffect, useRef, useState } from "react";
+import { Folder, Upload } from "lucide-react";
+import { getDocuments, uploadDocument } from "../api/api";
+
+type Document = {
+  id: number;
+  filename: string;
+  file_type: string;
+  path: string;
+};
+
+type Props = {
+  selectedDocument: number | null;
+  setSelectedDocument: React.Dispatch<React.SetStateAction<number | null>>;
+};
+
+export default function RightSidebar({
+  selectedDocument,
+  setSelectedDocument,
+}: Props) {
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function loadDocuments() {
+    const docs = await getDocuments();
+    setDocuments(docs);
+  }
+
+  useEffect(() => {
+    loadDocuments();
+  }, []);
+
+  async function handleUpload(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    if (!e.target.files?.length) return;
+
+    await uploadDocument(e.target.files[0]);
+
+    loadDocuments();
+  }
+
   return (
     <div className="h-full bg-gradient-to-b from-zinc-950 to-zinc-900/60 p-5">
 
-      <h2 className="text-lg font-semibold mb-6 bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 py-3 hover:bg-zinc-800"
+      >
+        <Upload className="h-5 w-5" />
+        Upload Document
+      </button>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.pptx,.docx"
+        hidden
+        onChange={handleUpload}
+      />
+
+      <h2 className="mb-5 text-lg font-semibold">
         Documents
       </h2>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
 
-        <div className="rounded-lg bg-gradient-to-r from-zinc-900 to-zinc-900/40 border border-zinc-800 p-3 hover:from-zinc-800 hover:to-zinc-800/40 cursor-pointer transition">
-          📄 ANN_M1_Introduction.pptx
-        </div>
+        {documents.map((doc) => (
+          <div
+            key={doc.id}
+            onClick={() => setSelectedDocument(doc.id)}
+            className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 transition
+              ${
+                selectedDocument === doc.id
+                  ? "bg-blue-700/40 border border-blue-500"
+                  : "hover:bg-zinc-900"
+              }`}
+          >
+            <Folder
+              className="h-5 w-5 text-yellow-400"
+              fill="currentColor"
+            />
 
-        <div className="rounded-lg bg-gradient-to-r from-zinc-900 to-zinc-900/40 border border-zinc-800 p-3 hover:from-zinc-800 hover:to-zinc-800/40 cursor-pointer transition">
-          📄 CNN.pdf
-        </div>
+            <div className="flex flex-col">
 
-        <div className="rounded-lg bg-gradient-to-r from-zinc-900 to-zinc-900/40 border border-zinc-800 p-3 hover:from-zinc-800 hover:to-zinc-800/40 cursor-pointer transition">
-          📄 NLP.docx
-        </div>
+              <span>{doc.filename}</span>
+
+              <span className="text-xs text-zinc-500">
+                {doc.file_type.toUpperCase()}
+              </span>
+
+            </div>
+          </div>
+        ))}
 
       </div>
 
