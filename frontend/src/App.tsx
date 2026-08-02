@@ -7,6 +7,18 @@ export default function App() {
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [selectedDocument, setSelectedDocument] = useState<number | null>(null);
+  const [messages, setMessages] = useState<
+  {
+    role: "user" | "assistant";
+    content: string;
+  }[]
+>([
+    {
+      role: "assistant",
+      content:
+        "👋 Welcome! What can I help you with today?",
+    },
+  ]);
 
   return (
     <div className="h-screen bg-gradient-to-br from-zinc-950 via-zinc-950 to-black text-zinc-100 flex overflow-hidden">
@@ -32,7 +44,11 @@ export default function App() {
 
       {/* Chat */}
       <div className="flex-1 min-w-0">
-        <ChatWindow />
+        <ChatWindow
+          messages={messages}
+          setMessages={setMessages}
+          selectedDocument={selectedDocument}
+      />
       </div>
 
       {/* Right Sidebar */}

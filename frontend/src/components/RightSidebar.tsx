@@ -72,7 +72,7 @@ export default function RightSidebar({
             className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 transition
               ${
                 selectedDocument === doc.id
-                  ? "bg-blue-700/40 border border-blue-500"
+                  ? "bg-gradient-to-br from-blue-700/60 to-blue-800/60 border border-blue-500/10"
                   : "hover:bg-zinc-900"
               }`}
           >
