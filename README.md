@@ -1,80 +1,616 @@
-# Documentation Assistant
+# RAG Assistant Roadmap
 
-A RAG-based document Q&A chatbot — ask questions against a resume or document and get grounded answers, NotebookLM-style but intentionally minimal.
+## Project Goal
 
-## Tech stack
+Build a production-quality Retrieval-Augmented Generation (RAG) assistant from scratch while understanding every component instead of relying on frameworks.
 
-- **Extraction**: `pdfplumber`, `python-pptx`
-- **Vector store**: FAISS
-- **Generation**: Groq / HuggingFace inference
-- **Backend**: FastAPI
-- **Frontend**: Gradio / React (minimal, capped scope)
-- **Deployment**: HuggingFace Spaces (production), AWS EC2 (learning/resume exercise)
+The goal is to learn retrieval systems, backend engineering, deployment, and production RAG architecture.
 
-## Architecture overview
+---
 
-### 1. Ingestion pipeline
+# Current Stack
 
-Runs once per uploaded document, before any query happens.
+Frontend
+- React
+- TypeScript
+- TailwindCSS
+- Vite
 
-```mermaid
-flowchart TD
-    A[Document upload<br/>PDF / PPTX via pdfplumber, python-pptx] --> B[Chunking<br/>Split text into overlapping chunks]
-    B --> C[Embedding<br/>Chunks converted to vectors]
-    C --> D[Vector store<br/>FAISS index, persisted to disk]
+Backend
+- FastAPI
+- Python
+
+LLM
+- Groq
+- Llama-3.3-70B-Versatile
+
+Embeddings
+- sentence-transformers/all-MiniLM-L6-v2
+
+Vector Database
+- FAISS
+
+Supported Files
+- PDF
+- PPTX
+- DOCX
+
+---
+
+# Completed ✅
+
+## Backend
+
+### Document Upload
+
+- Upload endpoint
+- Supports PDF
+- Supports PPTX
+- Supports DOCX
+- Extract text from each format
+
+---
+
+### Chunking
+
+Implemented custom chunking
+
+Features
+
+- Configurable chunk size
+- Configurable overlap
+- Validation
+- Merge tiny last chunk
+
+---
+
+### Embeddings
+
+SentenceTransformer
+
+```
+all-MiniLM-L6-v2
 ```
 
-### 2. Query-time pipeline
+Each chunk is embedded.
 
-Runs on every user request.
+---
 
-```mermaid
-flowchart TD
-    A[User query<br/>React / Gradio frontend] --> B[API gateway<br/>Auth check, rate limiting]
-    B --> C[Retriever<br/>Top-k similarity search in FAISS]
-    C --> D[LLM generation<br/>Groq API call with retrieved context]
-    D --> E[Response<br/>Answer returned to frontend]
+### Vector Search
+
+Implemented
+
+```
+FAISS IndexFlatL2
 ```
 
-### 3. API key security
+Pipeline
 
-The frontend never sees the Groq API key. It only ever holds a session token (JWT / scoped API key) that proves the request is authorized to hit the backend. The backend is the only thing that reads the real key and attaches it server-side when calling Groq.
+```
+Query
 
-```mermaid
-flowchart LR
-    F[Frontend<br/>no key] -- "JWT / API-key<br/>auth token only" --> S
+↓
 
-    subgraph S[Backend server — FastAPI, dockerized]
-        direction LR
-        SEC[Secrets store<br/>.env / AWS Secrets Manager] --> LOGIC[API logic<br/>Reads key at runtime, calls Groq]
-    end
+Embedding
 
-    S -- "Groq key<br/>attached here" --> G[Groq LLM API]
+↓
+
+FAISS
+
+↓
+
+Top K chunks
 ```
 
-**Key practices:**
-- API key is injected as a runtime environment variable (`docker run -e GROQ_API_KEY=...`) or pulled from AWS Secrets Manager on EC2 — never baked into the Docker image or committed to git.
-- TLS termination happens at the edge (nginx / HF Spaces proxy) so auth tokens aren't sent in plaintext.
-- `.env` is git-ignored; `.env.example` documents required variables without values.
+---
 
-## Deployment
+### Prompt Builder
 
-| Environment | Host | Purpose |
-|---|---|---|
-| Production | HuggingFace Spaces | Public demo |
-| Learning exercise | AWS EC2 + Docker + nginx | Resume / MLOps practice |
+Custom prompt restricting model to answer ONLY from retrieved context.
 
-## Local development
+---
 
-```bash
-# clone and install
-git clone <repo-url>
-cd dads-documentation-assistant
-pip install -r requirements.txt
+### LLM
 
-# set environment variables
-cp .env.example .env   # add your GROQ_API_KEY
+Groq API
 
-# run
-uvicorn app.main:app --reload
+Model
+
 ```
+llama-3.3-70b-versatile
+```
+
+---
+
+### RAG Pipeline
+
+Current pipeline
+
+```
+Upload
+
+↓
+
+Extract text
+
+↓
+
+Chunk
+
+↓
+
+Embedding
+
+↓
+
+FAISS
+
+↓
+
+Retrieve Top-K
+
+↓
+
+Prompt Builder
+
+↓
+
+Groq
+
+↓
+
+Answer
+```
+
+---
+
+### FastAPI
+
+Implemented endpoints
+
+- Upload document
+- Ask question
+- List uploaded documents
+
+---
+
+# Frontend
+
+Dark ChatGPT-inspired interface.
+
+Completed
+
+### Chat Window
+
+- User messages
+- Assistant messages
+- Thinking animation
+- Welcome message
+- Auto-scroll
+- Enter to send
+- Multiline input
+
+---
+
+### Sidebar
+
+Implemented
+
+- New Chat
+- Rename Chat
+- Delete Chat
+- Change Source
+- Search chats
+- Responsive collapse
+- LocalStorage persistence
+
+---
+
+### Right Sidebar
+
+Implemented
+
+- Uploaded documents
+- File selection
+- Highlight selected file
+
+---
+
+### Chat Management
+
+Implemented
+
+- Multiple chats
+- Chat history
+- Chat titles
+- Search
+- Local persistence
+- Filter chats by document
+- "All Chats" view
+
+---
+
+### Document Management
+
+Implemented
+
+- Upload multiple files
+- Multiple formats
+- Filter conversations by file
+- Change conversation source
+
+---
+
+### UX
+
+Implemented
+
+- Typing indicator
+- Loading animation
+- Responsive sidebars
+- Persistent conversations
+- Dark theme
+
+---
+
+# Current Architecture
+
+```
+React
+
+↓
+
+FastAPI
+
+↓
+
+Document Loader
+
+↓
+
+Chunker
+
+↓
+
+Embeddings
+
+↓
+
+FAISS
+
+↓
+
+Top K
+
+↓
+
+Groq
+
+↓
+
+Answer
+
+↓
+
+React
+```
+
+---
+
+# Remaining Roadmap
+
+## Phase 1
+
+### Metadata
+
+Store metadata for every chunk
+
+```
+{
+    text,
+    filename,
+    page,
+    chunk_id
+}
+```
+
+Purpose
+
+- citations
+- future reranking
+- document references
+
+---
+
+### Citations
+
+Return
+
+```
+Answer
+
+Sources
+
+filename
+
+page / slide
+```
+
+Frontend displays clickable sources.
+
+---
+
+## Phase 2
+
+### BM25
+
+Implement lexical retrieval.
+
+Pipeline
+
+```
+Query
+
+↓
+
+BM25
+
+↓
+
+Results
+```
+
+---
+
+### Hybrid Retrieval
+
+```
+Query
+
+↓
+
+Embedding
+
+↓
+
+FAISS
+
++
+
+BM25
+
+↓
+
+Merge
+
+↓
+
+Top Candidates
+```
+
+---
+
+### Reranking
+
+Pipeline
+
+```
+Top 20
+
+↓
+
+Cross Encoder
+
+↓
+
+Best 4
+
+↓
+
+LLM
+```
+
+Possible models
+
+- bge-reranker
+- ms-marco MiniLM reranker
+
+---
+
+## Phase 3
+
+### Response Cache
+
+Avoid repeated LLM calls.
+
+Possible
+
+- in-memory
+- Redis (future)
+
+---
+
+### Logging
+
+Store
+
+- question
+- retrieved chunks
+- latency
+- token usage
+
+---
+
+### Error Handling
+
+Graceful handling for
+
+- upload failures
+- unsupported files
+- Groq errors
+- rate limits
+
+---
+
+### Guardrails
+
+Reject
+
+- empty documents
+- unsupported formats
+- invalid prompts
+
+---
+
+## Phase 4
+
+### Docker
+
+Dockerize
+
+Frontend
+
+Backend
+
+Single
+
+```
+docker compose up
+```
+
+---
+
+### Deployment
+
+Deploy
+
+Frontend
+
+- Vercel
+
+Backend
+
+- Render
+or
+- Railway
+
+---
+
+### Environment Variables
+
+Move
+
+- API Keys
+- Config
+
+into
+
+```
+.env
+```
+
+---
+
+## Stretch Goals
+
+If time permits
+
+- Streaming responses
+- Semantic caching
+- Query rewriting
+- Multi-query retrieval
+- Parent-child chunking
+- Query expansion
+- Image extraction from PDFs
+- OCR support
+- Table extraction
+- User authentication
+- PostgreSQL
+- Conversation database
+- Redis cache
+- Observability dashboard
+
+---
+
+# Final Production Pipeline
+
+```
+Upload
+
+↓
+
+Extract Text
+
+↓
+
+Chunk
+
+↓
+
+Metadata
+
+↓
+
+Embeddings
+
+↓
+
+FAISS
+
++
+
+BM25
+
+↓
+
+Merge
+
+↓
+
+Reranker
+
+↓
+
+Best Chunks
+
+↓
+
+Prompt Builder
+
+↓
+
+Groq
+
+↓
+
+Answer + Citations
+
+↓
+
+Cache
+
+↓
+
+Frontend
+```
+
+---
+
+# Learning Goals
+
+By the end of this project, understand
+
+- Chunking strategies
+- Embeddings
+- Vector search
+- BM25
+- Hybrid retrieval
+- Reranking
+- Prompt engineering
+- FastAPI
+- React integration
+- Docker
+- Deployment
+- Production RAG architecture
+
+without relying on LangChain or LlamaIndex abstractions.
