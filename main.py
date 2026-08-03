@@ -6,8 +6,10 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from rag import RAGAssistant
 from fastapi import HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 import tempfile
 import shutil
+import mimetypes
 from fastapi.middleware.cors import CORSMiddleware
 
 app=FastAPI(
@@ -96,6 +98,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.get("/documents/{document_id}/file")
+def get_document_file(document_id: int):
+    doc = next((d for d in documents if d["id"] == document_id), None)
+
+    if doc is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found."
+        )
+
+    media_type = mimetypes.guess_type(doc["filename"])[0] or "application/octet-stream"
+
+    return FileResponse(
+        doc["path"],
+        media_type=media_type,
+        filename=doc["filename"],
+        content_disposition_type="inline"
+    )
+
 @app.get("/documents")
 def get_documents():
 

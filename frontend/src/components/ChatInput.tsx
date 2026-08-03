@@ -30,9 +30,12 @@ type Props = {
   >;
 };
 
+const QUESTION_LIMIT = 20;
+
 export default function ChatInput({
   selectedConversation,
   setSelectedConversation,
+  conversations,
   setConversations,
   selectedDocument,
   loading,
@@ -41,6 +44,16 @@ export default function ChatInput({
   const [question, setQuestion] = useState("");
   const [isMultiline, setIsMultiline] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const currentConversation = conversations.find(
+    (c) => c.id === selectedConversation
+  );
+
+  const questionCount =
+    currentConversation?.messages.filter((m) => m.role === "user").length ??
+    0;
+
+  const limitReached = questionCount >= QUESTION_LIMIT;
 
   const handleInput = () => {
     const el = textareaRef.current;
@@ -62,6 +75,8 @@ export default function ChatInput({
 
   async function handleSend() {
     if (!question.trim()) return;
+
+    if (limitReached) return;
 
     if (selectedDocument === null) {
       alert("Please select a document.");
@@ -175,6 +190,17 @@ export default function ChatInput({
       textareaRef.current.style.height = "auto";
 
     setLoading(false);
+  }
+
+  if (limitReached) {
+    return (
+      <div className="p-4">
+        <div className="w-[90%] max-w-4xl mx-auto rounded-3xl border border-amber-500/30 bg-zinc-800 px-5 py-4 text-center text-sm text-amber-300">
+          Sorry, the limit of {QUESTION_LIMIT} questions has been reached for
+          this chat. Please start a new chat to continue.
+        </div>
+      </div>
+    );
   }
 
   return (

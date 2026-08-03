@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
-import { Folder, Upload } from "lucide-react";
-import { getDocuments, uploadDocument } from "../api/api";
+import { useEffect, useRef, useState } from "react";
+import { Eye, Folder, Upload } from "lucide-react";
+import { fetchDocumentFile, getDocuments, uploadDocument } from "../api/api";
 
 type Document = {
   id: number;
@@ -25,10 +25,28 @@ export default function RightSidebar({
   setFilterDocument,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  function showToast(message: string) {
+    setToast(message);
+    setTimeout(() => setToast(null), 2500);
+  }
 
   async function loadDocuments() {
     const docs = await getDocuments();
     setDocuments(docs);
+  }
+
+  async function handleOpenFile(doc: Document) {
+    try {
+      const blob = await fetchDocumentFile(doc.id);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch {
+      showToast("Document no longer available, please re-upload");
+      setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+      loadDocuments();
+    }
   }
 
   useEffect(() => {
@@ -40,7 +58,19 @@ export default function RightSidebar({
   ) {
     if (!e.target.files?.length) return;
 
-    await uploadDocument(e.target.files[0]);
+    const file = e.target.files[0];
+    e.target.value = "";
+
+    const alreadyUploaded = documents.some(
+      (doc) => doc.filename.toLowerCase() === file.name.toLowerCase()
+    );
+
+    if (alreadyUploaded) {
+      showToast("Already uploaded");
+      return;
+    }
+
+    await uploadDocument(file);
 
     loadDocuments();
   }
@@ -50,11 +80,17 @@ export default function RightSidebar({
 
       <button
         onClick={() => fileInputRef.current?.click()}
-        className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 py-3 hover:bg-zinc-800"
+        className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 py-3 hover:bg-zinc-800"
       >
         <Upload className="h-5 w-5" />
         Upload Document
       </button>
+
+      {toast && (
+        <div className="mb-3 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-center text-sm shadow-lg shadow-black/40">
+          {toast}
+        </div>
+      )}
 
       <input
         ref={fileInputRef}
@@ -85,19 +121,30 @@ export default function RightSidebar({
               }`}
           >
             <Folder
-              className="h-5 w-5 text-yellow-400"
+              className="h-5 w-5 text-yellow-400 shrink-0"
               fill="currentColor"
             />
 
-            <div className="flex flex-col">
+            <div className="flex flex-col flex-1 min-w-0">
 
-              <span>{doc.filename}</span>
+              <span className="truncate">{doc.filename}</span>
 
               <span className="text-xs text-zinc-500">
                 {doc.file_type.toUpperCase()}
               </span>
 
             </div>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenFile(doc);
+              }}
+              className="shrink-0 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-700 hover:text-white"
+              aria-label={`Open ${doc.filename}`}
+            >
+              <Eye className="h-4 w-4" />
+            </button>
           </div>
         ))}
 
