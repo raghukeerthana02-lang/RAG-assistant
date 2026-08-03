@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Folder, Upload } from "lucide-react";
 import { getDocuments, uploadDocument } from "../api/api";
 
@@ -12,13 +12,18 @@ type Document = {
 type Props = {
   selectedDocument: number | null;
   setSelectedDocument: React.Dispatch<React.SetStateAction<number | null>>;
+  documents: Document[];
+  setDocuments: React.Dispatch<React.SetStateAction<Document[]>>;
+  setFilterDocument: React.Dispatch<React.SetStateAction<number | null>>;
 };
 
 export default function RightSidebar({
   selectedDocument,
   setSelectedDocument,
+  documents,
+  setDocuments,
+  setFilterDocument,
 }: Props) {
-  const [documents, setDocuments] = useState<Document[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadDocuments() {
@@ -68,7 +73,10 @@ export default function RightSidebar({
         {documents.map((doc) => (
           <div
             key={doc.id}
-            onClick={() => setSelectedDocument(doc.id)}
+            onClick={() => {
+              setSelectedDocument(doc.id);
+              setFilterDocument(doc.id);
+            }}
             className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 transition
               ${
                 selectedDocument === doc.id
