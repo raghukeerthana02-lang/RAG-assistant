@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Menu } from "lucide-react";
+import { Folder, Menu } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import ChatWindow from "./components/ChatWindow";
 import RightSidebar from "./components/RightSidebar";
@@ -125,7 +125,7 @@ export default function App() {
           rightOpen ? "hidden" : ""
         }`}
       >
-        <Menu className="h-5 w-5" />
+        <Folder className="h-5 w-5 text-yellow-400" fill="currentColor" />
       </button>
 
       {/* Mobile backdrops */}
