@@ -80,7 +80,7 @@ export default function RightSidebar({
 
       <button
         onClick={() => fileInputRef.current?.click()}
-        className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 py-3 hover:bg-zinc-800"
+        className="mb-3 w-full rounded-xl bg-black border border-white/70 hover:bg-white/10 py-3 font-medium flex items-center justify-center gap-2 transition"
       >
         <Upload className="h-5 w-5" />
         Upload Document

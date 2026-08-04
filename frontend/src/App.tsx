@@ -200,6 +200,7 @@ export default function App() {
           selectedConversation={selectedConversation}
           setSelectedConversation={setSelectedConversation}
           selectedDocument={selectedDocument}
+          documents={documents}
           loading={loading}
           setLoading={setLoading}
         />

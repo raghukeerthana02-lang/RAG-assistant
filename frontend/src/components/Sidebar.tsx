@@ -71,12 +71,25 @@ export default function Sidebar({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const isSearching = searchQuery.trim().length > 0;
+  const query = searchQuery.trim().toLowerCase();
+
+  function matchRank(title: string) {
+    const t = title.toLowerCase();
+    if (t === query) return 0;
+    if (t.startsWith(query)) return 1;
+    return 2;
+  }
+
   const visibleConversations = conversations
     .filter((c) =>
-      filterDocument === null ? true : c.documentId === filterDocument
+      isSearching || filterDocument === null
+        ? true
+        : c.documentId === filterDocument
     )
-    .filter((c) =>
-      c.title.toLowerCase().includes(searchQuery.trim().toLowerCase())
+    .filter((c) => c.title.toLowerCase().includes(query))
+    .sort((a, b) =>
+      isSearching ? matchRank(a.title) - matchRank(b.title) : 0
     );
 
   function handleNewChat() {
