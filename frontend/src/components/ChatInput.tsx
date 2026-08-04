@@ -2,9 +2,15 @@ import { useRef, useState } from "react";
 import { SendHorizontal } from "lucide-react";
 import { askQuestion } from "../api/api";
 
+type Source = {
+  filename: string;
+  page: number;
+};
+
 type Message = {
   role: "user" | "assistant";
   content: string;
+  sources?: Source[];
 };
 
 type Conversation = {
@@ -146,6 +152,7 @@ export default function ChatInput({
       const assistantMessage: Message = {
         role: "assistant",
         content: response.answer,
+        sources: response.sources,
       };
 
       setConversations((prev) =>

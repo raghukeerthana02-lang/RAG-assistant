@@ -4,9 +4,15 @@ import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import TypingIndicator from "./TypingIndicator";
 
+type Source = {
+  filename: string;
+  page: number;
+};
+
 type Message = {
   role: "user" | "assistant";
   content: string;
+  sources?: Source[];
 };
 
 type Conversation = {
@@ -134,6 +140,8 @@ export default function ChatWindow({
                     key={index}
                     isUser={message.role === "user"}
                     message={message.content}
+                    sources={message.sources}
+                    documentId={currentConversation?.documentId ?? null}
                   />
 
                 ))}

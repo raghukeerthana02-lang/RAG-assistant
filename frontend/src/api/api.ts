@@ -15,6 +15,16 @@ export async function fetchDocumentFile(documentId: number) {
     return await response.blob();
 }
 
+export async function openDocumentAtPage(documentId: number, page: number) {
+    const blob = await fetchDocumentFile(documentId);
+    const url = URL.createObjectURL(blob);
+
+    const target =
+        blob.type === "application/pdf" ? `${url}#page=${page}` : url;
+
+    window.open(target, "_blank");
+}
+
 export async function getDocuments() {
     const response = await fetch(`${API}/documents`);
     return await response.json();
