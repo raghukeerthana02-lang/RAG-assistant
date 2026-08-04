@@ -26,15 +26,24 @@ def extract_pdf(file_path):
 
     reader = PdfReader(file_path)
 
-    text = ""
+    pages = []
 
-    for page in reader.pages:
+    for page_number, page in enumerate(reader.pages, start=1):
+
         extracted = page.extract_text()
+        filename = Path(file_path).name
 
         if extracted:
-            text += extracted + "\n"
 
-    return text
+            pages.append(
+                {
+                    "filename": filename,
+                    "page": page_number,
+                    "text": extracted
+                }
+            )
+
+    return pages
 
 
 def extract_docx(file_path):
@@ -45,21 +54,43 @@ def extract_docx(file_path):
 
     for paragraph in document.paragraphs:
         text += paragraph.text + "\n"
+    filename = Path(file_path).name
 
-    return text
+    return [
+        {
+            "filename": filename,
+            "page": 1,
+            "text": text
+        }
+    ]
 
 
 def extract_pptx(file_path):
 
     presentation = Presentation(file_path)
 
-    text = ""
+    slides = []
 
-    for slide in presentation.slides:
+    for slide_number, slide in enumerate(
+        presentation.slides,
+        start=1
+    ):
+
+        text = ""
 
         for shape in slide.shapes:
 
             if hasattr(shape, "text"):
                 text += shape.text + "\n"
 
-    return text
+        filename = Path(file_path).name
+
+        slides.append(
+            {
+                "filename": filename,
+                "page": slide_number,
+                "text": text
+            }
+        )
+
+    return slides

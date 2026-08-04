@@ -1,4 +1,5 @@
-def chunk_text(text, chunk_size, overlap):
+def chunk_documents(documents, chunk_size, overlap):
+
     chunks = []
 
     if overlap >= chunk_size:
@@ -7,17 +8,57 @@ def chunk_text(text, chunk_size, overlap):
     if chunk_size <= 0:
         raise ValueError("chunk size must be greater than 0")
 
-    if not text:
-        raise ValueError("length of text must be greater than 0")
-
     if overlap < 0:
         raise ValueError("overlap must be greater than or equal to 0")
 
-    for start in range(0, len(text), chunk_size - overlap):
-        chunks.append(text[start:start + chunk_size])
+    chunk_id = 0
 
-    if len(chunks) > 1 and len(chunks[-1]) < 0.5 * chunk_size:
-        last = chunks.pop()
-        chunks[-1] += last[overlap:] if overlap > 0 else last
+    for document in documents:
+
+        text = document["text"]
+
+        if not text:
+            continue
+
+        page = document["page"]
+        filename = document["filename"]
+
+        page_chunks = []
+
+        for start in range(
+            0,
+            len(text),
+            chunk_size - overlap
+        ):
+
+            page_chunks.append(
+                text[start:start + chunk_size]
+            )
+
+        if (
+            len(page_chunks) > 1
+            and len(page_chunks[-1]) < 0.5 * chunk_size
+        ):
+
+            last = page_chunks.pop()
+
+            page_chunks[-1] += (
+                last[overlap:]
+                if overlap > 0
+                else last
+            )
+
+        for chunk in page_chunks:
+
+            chunks.append(
+                {
+                    "text": chunk,
+                    "filename": filename,
+                    "page": page,
+                    "chunk_id": chunk_id
+                }
+            )
+
+            chunk_id += 1
 
     return chunks

@@ -1,6 +1,7 @@
 from sentence_transformers import SentenceTransformer
+from config import EMBEDDING_MODEL
 
-model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+model = SentenceTransformer(EMBEDDING_MODEL)
 
 
 def embed_chunks(chunks):

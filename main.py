@@ -24,11 +24,15 @@ ALLOWED_EXTENSIONS = {
 }
 documents = []
 rags={}
+class Source(BaseModel):
+    filename: str
+    page: int
 class ChatRequest(BaseModel):
     document_id: int
     question:str
 class ChatResponse(BaseModel):
-    answer:str
+    answer: str
+    sources: list[Source]
 @app.get("/")
 def home():
     return {
@@ -44,8 +48,12 @@ def chat(request:ChatRequest):
             detail="Document not found."
         )
 
-    answer = rag.ask(request.question)
-    return ChatResponse(answer=answer)
+    response = rag.ask(request.question)
+
+    return ChatResponse(
+        answer=response["answer"],
+        sources=response["sources"]
+    )
 
 
 @app.post("/upload")
