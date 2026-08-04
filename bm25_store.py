@@ -1,15 +1,24 @@
 from rank_bm25 import BM25Okapi
 import re
 import nltk
+from nltk.corpus import stopwords
 import numpy as np
 
-
+STOP_WORDS = set(stopwords.words("english"))
 def tokenize(text):
 
-    return re.findall(
+    words = re.findall(
         r"\b\w+\b",
         text.lower()
     )
+
+    words = [
+        word
+        for word in words
+        if word not in STOP_WORDS
+    ]
+
+    return words
 
 
 def build_bm25(chunks):
@@ -32,27 +41,12 @@ def search_bm25(
 ):
 
     tokenized_query = tokenize(query)
-    print("\nQuery Tokens:")
-    print(tokenized_query)
 
     scores = bm25.get_scores(
         tokenized_query
     )
 
-    ranked_indices = sorted(
-        range(len(scores)),
-        key=lambda i: scores[i],
-        reverse=True
-    )
-
     top_indices = np.argsort(scores)[::-1][:k]
-    for i in top_indices:
-
-        print(f"Score: {scores[i]:.3f}")
-
-        print(chunks[i]["text"][:120])
-
-        print()
 
     return [
         chunks[i]

@@ -2,8 +2,8 @@
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
 
-# Retrieval
-TOP_K = 8
+RETRIEVAL_K = 10
+RERANK_K = 4
 
 # Embedding Model
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"

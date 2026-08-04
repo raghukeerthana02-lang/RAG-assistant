@@ -36,9 +36,9 @@ export default function MessageBubble({
 
       <button
         onClick={handleCopy}
-        className="mt-2 text-zinc-500 opacity-0 transition group-hover:opacity-100 hover:text-zinc-300"
+        className="mt-2 rounded-md p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
       >
-        {copied ? <Check size={14} /> : <Copy size={14} />}
+        {copied ? <Check size={20} /> : <Copy size={20} />}
       </button>
     </div>
   );

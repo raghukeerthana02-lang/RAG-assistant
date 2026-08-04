@@ -8,7 +8,8 @@ from llm import generate_answer
 from config import (
     CHUNK_SIZE,
     CHUNK_OVERLAP,
-    TOP_K
+    RETRIEVAL_K,
+    RERANK_K
 )
 from hybrid_retriever import hybrid_retrieve
 
@@ -40,7 +41,7 @@ class RAGAssistant:
         self.index = build_index(embeddings)
         self.bm25 = build_bm25(self.chunks)
 
-    def ask(self, query, k=TOP_K):
+    def ask(self, query):
 
         query_embedding = embed_query(query)
 
@@ -50,7 +51,7 @@ class RAGAssistant:
             self.chunks,
             query_embedding,
             query,
-            k
+            RETRIEVAL_K
         )
 
         context = "\n\n".join(
