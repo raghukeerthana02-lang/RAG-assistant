@@ -5,6 +5,7 @@ from vector_store import build_index
 from bm25_store import build_bm25
 from prompt_builder import build_prompt
 from llm import generate_answer
+from reranker import rerank
 from config import (
     CHUNK_SIZE,
     CHUNK_OVERLAP,
@@ -53,10 +54,15 @@ class RAGAssistant:
             query,
             RETRIEVAL_K
         )
+        reranked_chunks = rerank(
+            query,
+            retrieved_chunks,
+            RERANK_K
+        )
 
         context = "\n\n".join(
             chunk["text"]
-            for chunk in retrieved_chunks
+            for chunk in reranked_chunks
         )
 
         prompt = build_prompt(
@@ -70,7 +76,7 @@ class RAGAssistant:
 
         seen = set()
 
-        for chunk in retrieved_chunks:
+        for chunk in reranked_chunks:
 
             key = (
                 chunk["filename"],
