@@ -86,6 +86,14 @@ export default function Sidebar({
       return;
     }
 
+    const currentChat = conversations.find(
+      (c) => c.id === selectedConversation
+    );
+
+    if (currentChat && currentChat.messages.length === 0) {
+      return;
+    }
+
     const newConversation: Conversation = {
 
       id: Date.now(),
