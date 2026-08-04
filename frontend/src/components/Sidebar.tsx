@@ -94,6 +94,11 @@ export default function Sidebar({
 
   function handleNewChat() {
 
+    if (selectedConversation === null) {
+      // Already on the blank "new chat" canvas — nothing to do.
+      return;
+    }
+
     if (selectedDocument === null) {
       alert("Select a document first.");
       return;
