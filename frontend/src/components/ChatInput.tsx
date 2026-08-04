@@ -38,6 +38,18 @@ type Props = {
 
 const QUESTION_LIMIT = 20;
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof TypeError) {
+    return "Can't reach the server. Make sure the backend is running.";
+  }
+
+  if (error instanceof Error && error.message === "Document not found.") {
+    return "This chat's document is no longer available. Change its source to continue.";
+  }
+
+  return "Something went wrong. Please try again.";
+}
+
 export default function ChatInput({
   selectedConversation,
   setSelectedConversation,
@@ -180,10 +192,7 @@ export default function ChatInput({
         })
       );
     } catch (error) {
-      const errorContent =
-        error instanceof Error && error.message === "Document not found."
-          ? "This chat's document is no longer available. Change its source to continue."
-          : "Something went wrong.";
+      const errorContent = getErrorMessage(error);
 
       setConversations((prev) =>
         prev.map((conv) => {

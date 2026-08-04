@@ -66,19 +66,30 @@ export default function MessageBubble({
           {copied ? <Check size={20} /> : <Copy size={20} />}
         </button>
 
-        {citations.map((source) => (
-          <button
-            key={source.page}
-            onClick={() => handleCitationClick(source.page)}
-            className="flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-700 hover:text-white"
-          >
-            <File
-              size={14}
-              className="text-white shrink-0"
-            />
-            Page {source.page}
-          </button>
-        ))}
+        {citations.map((source) => {
+          const shortName =
+            source.filename.length > 5
+              ? `${source.filename.slice(0, 5)}…`
+              : source.filename;
+
+          return (
+            <button
+              key={source.page}
+              onClick={() => handleCitationClick(source.page)}
+              title={source.filename}
+              className="flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-700 hover:text-white"
+            >
+              <File
+                size={14}
+                className="text-white shrink-0"
+              />
+              <span>{shortName}</span>
+              <span className="shrink-0 text-slate-300">
+                Pg {source.page}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
