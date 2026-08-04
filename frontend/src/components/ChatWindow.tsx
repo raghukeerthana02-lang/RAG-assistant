@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MoveDown } from "lucide-react";
+import { CircleHelp, MoveDown } from "lucide-react";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import TypingIndicator from "./TypingIndicator";
@@ -97,8 +97,34 @@ export default function ChatWindow({
   return (
     <div className="h-full bg-gradient-to-b from-zinc-900 to-zinc-950 flex flex-col">
 
-      <div className="border-b border-zinc-800 px-16 py-4 text-xl font-semibold bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent text-center xl:px-6 xl:text-left">
-        Chat
+      <div className="border-b border-zinc-800 px-16 py-4 xl:px-6 flex items-center justify-center gap-2 xl:justify-start">
+        <span className="text-xl font-semibold bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
+          Chat
+        </span>
+
+        <div className="group relative">
+          <button
+            type="button"
+            aria-label="How to use"
+            className="flex text-slate-100 transition hover:text-zinc-300"
+          >
+            <CircleHelp size={20} />
+          </button>
+
+          <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 rounded-xl border border-zinc-700 bg-zinc-800 p-4 text-left text-sm text-zinc-300 opacity-0 shadow-lg shadow-black/40 transition group-hover:pointer-events-auto group-hover:opacity-100">
+            <ul className="list-disc space-y-1.5 pl-4">
+              <li>Upload a document, then select it to get started</li>
+              <li>Start asking questions about the selected document.</li>
+              <li>
+                Rename, delete, or change the source of a chat from its ⋯
+                menu in the sidebar.
+              </li>
+              <li>Search chats by name using the search icon.</li>
+              <li>Selecting a document filters the chats which use it as a source.</li>
+              <li>Click All chats to clear the filters.</li>
+            </ul>
+          </div>
+        </div>
       </div>
 
 

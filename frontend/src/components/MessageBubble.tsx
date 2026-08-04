@@ -30,7 +30,7 @@ export default function MessageBubble({
 
   const citations = Array.from(
     new Map((sources ?? []).map((s) => [s.page, s])).values()
-  ).slice(0, 3);
+  );
 
   async function handleCitationClick(page: number) {
     if (documentId == null) return;

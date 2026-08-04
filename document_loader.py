@@ -5,24 +5,25 @@ from docx import Document
 from pptx import Presentation
 
 
-def extract_text(file_path):
+def extract_text(file_path, filename=None):
 
     extension = Path(file_path).suffix.lower()
+    filename = filename or Path(file_path).name
 
     if extension == ".pdf":
-        return extract_pdf(file_path)
+        return extract_pdf(file_path, filename)
 
     elif extension == ".docx":
-        return extract_docx(file_path)
+        return extract_docx(file_path, filename)
 
     elif extension == ".pptx":
-        return extract_pptx(file_path)
+        return extract_pptx(file_path, filename)
 
     else:
         raise ValueError(f"Unsupported file type: {extension}")
 
 
-def extract_pdf(file_path):
+def extract_pdf(file_path, filename):
 
     reader = PdfReader(file_path)
 
@@ -31,7 +32,6 @@ def extract_pdf(file_path):
     for page_number, page in enumerate(reader.pages, start=1):
 
         extracted = page.extract_text()
-        filename = Path(file_path).name
 
         if extracted:
 
@@ -46,7 +46,7 @@ def extract_pdf(file_path):
     return pages
 
 
-def extract_docx(file_path):
+def extract_docx(file_path, filename):
 
     document = Document(file_path)
 
@@ -54,7 +54,6 @@ def extract_docx(file_path):
 
     for paragraph in document.paragraphs:
         text += paragraph.text + "\n"
-    filename = Path(file_path).name
 
     return [
         {
@@ -65,7 +64,7 @@ def extract_docx(file_path):
     ]
 
 
-def extract_pptx(file_path):
+def extract_pptx(file_path, filename):
 
     presentation = Presentation(file_path)
 
@@ -82,8 +81,6 @@ def extract_pptx(file_path):
 
             if hasattr(shape, "text"):
                 text += shape.text + "\n"
-
-        filename = Path(file_path).name
 
         slides.append(
             {

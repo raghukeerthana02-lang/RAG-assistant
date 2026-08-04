@@ -10,7 +10,8 @@ from config import (
     CHUNK_SIZE,
     CHUNK_OVERLAP,
     RETRIEVAL_K,
-    RERANK_K
+    RERANK_K,
+    CITATION_K
 )
 from hybrid_retriever import hybrid_retrieve
 
@@ -20,11 +21,12 @@ class RAGAssistant:
     def __init__(
         self,
         pdf_path,
+        filename=None,
         chunk_size=CHUNK_SIZE,
         overlap=CHUNK_OVERLAP,
     ):
 
-        pages = extract_text(pdf_path)
+        pages = extract_text(pdf_path, filename)
 
         self.chunks = chunk_documents(
             pages,
@@ -77,6 +79,9 @@ class RAGAssistant:
         seen = set()
 
         for chunk in reranked_chunks:
+
+            if len(sources) >= CITATION_K:
+                break
 
             key = (
                 chunk["filename"],

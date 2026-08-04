@@ -86,11 +86,13 @@ export default function Sidebar({
       return;
     }
 
-    const currentChat = conversations.find(
-      (c) => c.id === selectedConversation
+    const existingEmptyChat = conversations.find(
+      (c) => c.messages.length === 0
     );
 
-    if (currentChat && currentChat.messages.length === 0) {
+    if (existingEmptyChat) {
+      setSelectedConversation(existingEmptyChat.id);
+      setSelectedDocument(existingEmptyChat.documentId);
       return;
     }
 

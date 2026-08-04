@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 import tempfile
 import shutil
 import mimetypes
+import time
 from fastapi.middleware.cors import CORSMiddleware
 
 app=FastAPI(
@@ -80,9 +81,9 @@ def upload_pdf(file: UploadFile=File(...)):
 
         temp_path = temp.name
 
-    document_id = len(documents) + 1
+    document_id = int(time.time() * 1000)
 
-    rag = RAGAssistant(temp_path)
+    rag = RAGAssistant(temp_path, filename=file.filename)
     rags[document_id] = rag
     documents.append(
     {

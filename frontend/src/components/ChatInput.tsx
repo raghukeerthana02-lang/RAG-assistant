@@ -84,7 +84,19 @@ export default function ChatInput({
 
     if (limitReached) return;
 
-    if (selectedDocument === null) {
+    let conversationId = selectedConversation;
+
+    const conversationExists = conversations.some(
+      (conv) => conv.id === conversationId
+    );
+
+    // A chat always queries the document it was created with, never
+    // whatever happens to be globally selected in the right sidebar.
+    const activeDocumentId = conversationExists
+      ? currentConversation!.documentId
+      : selectedDocument;
+
+    if (activeDocumentId === null) {
       alert("Please select a document.");
       return;
     }
@@ -94,15 +106,13 @@ export default function ChatInput({
       content: question,
     };
 
-    let conversationId = selectedConversation;
-
-    if (conversationId === null) {
+    if (conversationId === null || !conversationExists) {
       conversationId = Date.now();
 
       const newConversation: Conversation = {
         id: conversationId,
         title: question.slice(0, 40),
-        documentId: selectedDocument,
+        documentId: activeDocumentId,
         messages: [userMessage],
       };
 
@@ -134,7 +144,7 @@ export default function ChatInput({
 
     try {
       const response = await askQuestion(
-        selectedDocument,
+        activeDocumentId,
         question
       );
 
@@ -169,7 +179,12 @@ export default function ChatInput({
           };
         })
       );
-    } catch {
+    } catch (error) {
+      const errorContent =
+        error instanceof Error && error.message === "Document not found."
+          ? "This chat's document is no longer available. Change its source to continue."
+          : "Something went wrong.";
+
       setConversations((prev) =>
         prev.map((conv) => {
           if (conv.id !== conversationId)
@@ -181,8 +196,7 @@ export default function ChatInput({
               ...conv.messages,
               {
                 role: "assistant",
-                content:
-                  "Something went wrong.",
+                content: errorContent,
               },
             ],
           };

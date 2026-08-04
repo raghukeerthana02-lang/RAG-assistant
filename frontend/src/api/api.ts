@@ -57,5 +57,10 @@ export async function askQuestion(
         }),
     });
 
+    if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.detail ?? "Failed to get an answer");
+    }
+
     return await response.json();
 }

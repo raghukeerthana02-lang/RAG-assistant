@@ -75,6 +75,21 @@ export default function App() {
     );
   }, [selectedConversation]);
 
+  // Keep conversations in sync across tabs, so a chat deleted in one
+  // tab can't be sent to from another tab's stale state.
+  useEffect(() => {
+    function handleStorage(e: StorageEvent) {
+      if (e.key === CONVERSATIONS_KEY) {
+        setConversations(
+          loadFromStorage<Conversation[]>(CONVERSATIONS_KEY, [])
+        );
+      }
+    }
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   const [documents, setDocuments] = useState<Document[]>([]);
 
   const [filterDocument, setFilterDocument] =
