@@ -296,7 +296,32 @@ React
 ```
 
 ---
-
+                 Query
+                   |
+        ┌──────────┴──────────┐
+        ▼                     ▼
+      FAISS                 BM25
+        |                     |
+        └──────────┬──────────┘
+                   ▼
+          Hybrid Retrieval
+          (candidate pool)
+                   |
+                   ▼
+            Cross Encoder
+             Reranking
+                   |
+                   ▼
+          Best 4 chunks
+                   |
+                   ▼
+            Prompt Builder
+                   |
+                   ▼
+              Groq LLM
+                   |
+                   ▼
+        Answer + Citations
 # Remaining Roadmap
 
 ## Phase 1
