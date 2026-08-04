@@ -100,7 +100,7 @@ export default function Sidebar({
     }
 
     const existingEmptyChat = conversations.find(
-      (c) => c.messages.length === 0
+      (c) => c.documentId === selectedDocument && c.messages.length === 0
     );
 
     if (existingEmptyChat) {
@@ -249,6 +249,16 @@ export default function Sidebar({
               onClick={() => {
                 setSelectedConversation(chat.id);
                 setSelectedDocument(chat.documentId);
+
+                // Opening a chat that doesn't belong to the active
+                // document filter would otherwise vanish from the list
+                // the moment the filter (or search) stops overriding it.
+                if (
+                  filterDocument !== null &&
+                  filterDocument !== chat.documentId
+                ) {
+                  setFilterDocument(null);
+                }
               }}
               className={`group relative rounded-xl cursor-pointer p-3 pr-9 transition ${
                 selectedConversation === chat.id

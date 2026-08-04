@@ -11,6 +11,7 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   sources?: Source[];
+  documentId?: number;
 };
 
 type Conversation = {
@@ -175,6 +176,7 @@ export default function ChatInput({
         role: "assistant",
         content: response.answer,
         sources: response.sources,
+        documentId: activeDocumentId,
       };
 
       setConversations((prev) =>

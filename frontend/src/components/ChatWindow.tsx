@@ -13,6 +13,7 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   sources?: Source[];
+  documentId?: number;
 };
 
 type Conversation = {
@@ -221,7 +222,11 @@ export default function ChatWindow({
                     isUser={message.role === "user"}
                     message={message.content}
                     sources={message.sources}
-                    documentId={currentConversation?.documentId ?? null}
+                    documentId={
+                      message.documentId ??
+                      currentConversation?.documentId ??
+                      null
+                    }
                   />
 
                 ))}
