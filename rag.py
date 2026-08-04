@@ -2,7 +2,7 @@ from document_loader import extract_text
 from chunker import chunk_documents
 from embedding import embed_chunks, embed_query
 from vector_store import build_index
-from retriever import retrieve
+from bm25_store import build_bm25
 from prompt_builder import build_prompt
 from llm import generate_answer
 from config import (
@@ -10,10 +10,7 @@ from config import (
     CHUNK_OVERLAP,
     TOP_K
 )
-from bm25_store import (
-    build_bm25,
-    search_bm25
-)
+from hybrid_retriever import hybrid_retrieve
 
 
 class RAGAssistant:
@@ -47,15 +44,11 @@ class RAGAssistant:
 
         query_embedding = embed_query(query)
 
-        retrieved_chunks = retrieve(
+        retrieved_chunks = hybrid_retrieve(
             self.index,
-            self.chunks,
-            query_embedding,
-            k
-        )
-        bm25_chunks = search_bm25(
             self.bm25,
             self.chunks,
+            query_embedding,
             query,
             k
         )
@@ -75,29 +68,6 @@ class RAGAssistant:
         sources = []
 
         seen = set()
-        print("\n====================")
-        print("FAISS RESULTS")
-        print("====================")
-
-        for chunk in retrieved_chunks:
-
-            print(
-                f"Page {chunk['page']}"
-            )
-
-            print("\n====================")
-            print("BM25 RESULTS")
-            print("====================")
-
-            for chunk in bm25_chunks:
-
-                print(
-                    f"Page {chunk['page']}"
-                )
-
-                print(chunk["text"][:120])
-
-                print()
 
         for chunk in retrieved_chunks:
 
