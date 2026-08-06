@@ -3,7 +3,6 @@ import { Folder, Menu } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import ChatWindow from "./components/ChatWindow";
 import RightSidebar from "./components/RightSidebar";
-
 const CONVERSATIONS_KEY = "rag-assistant:conversations";
 const SELECTED_CONVERSATION_KEY = "rag-assistant:selected-conversation";
 // Matches Tailwind's `xl:` prefix used throughout this file. Wider than
@@ -49,6 +48,7 @@ export type Document = {
 export default function App() {
   const [leftOpen, setLeftOpen] = useState(isDesktopViewport);
   const [rightOpen, setRightOpen] = useState(isDesktopViewport);
+  
 
   const [selectedDocument, setSelectedDocument] =
     useState<number | null>(null);

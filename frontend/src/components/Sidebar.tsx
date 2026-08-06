@@ -10,6 +10,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import UserMenu from "./UserMenu";
 
 type Message = {
   role: "user" | "assistant";
@@ -181,7 +182,9 @@ export default function Sidebar({
   }
 
   return (
-    <div className="h-full bg-gradient-to-b from-zinc-950 to-zinc-900/60 p-5 flex flex-col">
+    <div className="h-full bg-gradient-to-b from-zinc-950 to-zinc-900/60 flex flex-col overflow-hidden">
+
+      <div className="flex flex-col flex-1 min-h-0 p-5">
 
       <div className="flex gap-5">
         <button
@@ -228,7 +231,7 @@ export default function Sidebar({
         </div>
       )}
 
-      <div className="mt-8">
+      <div className="mt-8 flex flex-col flex-1 min-h-0">
 
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-white">
@@ -245,7 +248,7 @@ export default function Sidebar({
 
         <div className="border-b border-zinc-700/40 mb-3" />
 
-        <div className="space-y-2">
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 -mr-2 pr-2">
 
           {visibleConversations.map((chat) => (
 
@@ -404,6 +407,10 @@ export default function Sidebar({
         </div>
 
       </div>
+
+      </div>
+
+      <UserMenu />
 
     </div>
   );

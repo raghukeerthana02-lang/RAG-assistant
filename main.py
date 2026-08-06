@@ -1,7 +1,9 @@
 from dotenv import load_dotenv
 from pathlib import Path
 load_dotenv()
-
+from auth import verify_token
+from fastapi import Depends
+from supabase_client import supabase
 from fastapi import FastAPI
 from pydantic import BaseModel
 from rag import RAGAssistant
@@ -12,7 +14,8 @@ import shutil
 import mimetypes
 import time
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.security import HTTPBearer
+security = HTTPBearer()
 app=FastAPI(
     title="RAG Assistant API",
     description="Production-ready RAG chatbot built from scratch",
