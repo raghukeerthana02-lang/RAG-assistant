@@ -10,6 +10,7 @@ type Props = {
 
 export default function AuthModal({ open, onClose }: Props) {
   const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +20,7 @@ export default function AuthModal({ open, onClose }: Props) {
   if (!open) return null;
 
   function reset() {
+    setName("");
     setEmail("");
     setPassword("");
     setShowPassword(false);
@@ -45,6 +47,11 @@ export default function AuthModal({ open, onClose }: Props) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: name,
+          },
+        },
       });
 
       setLoading(false);
@@ -137,6 +144,22 @@ export default function AuthModal({ open, onClose }: Props) {
                 </button>
               </div>
             </div>
+
+            {!isLogin && (
+              <div>
+                <label className="mb-1.5 block text-sm text-zinc-400">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3.5 py-3 text-sm text-white outline-none focus:border-blue-500/50"
+                />
+              </div>
+            )}
           </div>
 
           {error && <p className="mt-3 text-sm text-red-400">{error}</p>}

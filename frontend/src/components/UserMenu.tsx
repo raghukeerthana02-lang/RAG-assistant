@@ -12,6 +12,8 @@ export default function UserMenu(){
 
     const [authOpen,setAuthOpen] = useState(false);
 
+    const displayName = user?.user_metadata?.full_name || user?.email;
+
 
     if(!user){
         return (
@@ -112,7 +114,7 @@ export default function UserMenu(){
                 "
                 >
                     {
-                        user.email
+                        displayName
                         ?.charAt(0)
                         .toUpperCase()
                     }
@@ -126,7 +128,7 @@ export default function UserMenu(){
                     text-white
                     truncate
                     ">
-                        {user.email}
+                        {displayName}
                     </p>
 
                     <p className="
