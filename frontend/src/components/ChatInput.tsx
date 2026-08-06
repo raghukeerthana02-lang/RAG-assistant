@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { SendHorizontal } from "lucide-react";
-import { askQuestion } from "../api/api";
+import { askQuestion } from "../lib/api";
 
 type Source = {
   filename: string;

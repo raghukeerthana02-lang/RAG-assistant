@@ -8,3 +8,4 @@ supabase = create_client(
     SUPABASE_URL,
     SUPABASE_KEY
 )
+print('key value:', SUPABASE_KEY[:20])

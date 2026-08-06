@@ -15,11 +15,19 @@ import mimetypes
 import time
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
+from storage import upload_document
 security = HTTPBearer()
 app=FastAPI(
     title="RAG Assistant API",
     description="Production-ready RAG chatbot built from scratch",
     version="1.0.0"
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5174"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 ALLOWED_EXTENSIONS = {
     ".pdf",
@@ -61,83 +69,117 @@ def chat(request:ChatRequest):
 
 
 @app.post("/upload")
-def upload_pdf(file: UploadFile=File(...)):
-    ALLOWED_EXTENSIONS = {
-    ".pdf",
-    ".docx",
-    ".pptx"
-    }
+def upload_pdf(
+    file: UploadFile = File(...),
+    user_id: str = Depends(verify_token)
+):
 
     extension = Path(file.filename).suffix.lower()
+
 
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
             detail="Supported files: PDF, DOCX, PPTX"
         )
+
+
+    # check duplicate filename
+    existing = (
+        supabase
+        .table("documents")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("filename", file.filename)
+        .execute()
+    )
+
+
+    if existing.data:
+        raise HTTPException(
+            status_code=400,
+            detail="File already exists"
+        )
+
+
+    # temporary file for RAG processing
     with tempfile.NamedTemporaryFile(
         delete=False,
         suffix=extension
     ) as temp:
 
-        shutil.copyfileobj(file.file, temp)
-
-        temp_path = temp.name
-
-    document_id = int(time.time() * 1000)
-
-    rag = RAGAssistant(temp_path, filename=file.filename)
-    rags[document_id] = rag
-    documents.append(
-    {
-        "id": document_id,
-        "filename": file.filename,
-        "file_type": extension[1:],
-        "path": temp_path
-    }
-)
-
-    return {
-        "message": "Document uploaded successfully!",
-        "filename": file.filename,
-        "document_type": extension.lstrip("."),
-        "chunks": len(rag.chunks)
-    }
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5174"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-@app.get("/documents/{document_id}/file")
-def get_document_file(document_id: int):
-    doc = next((d for d in documents if d["id"] == document_id), None)
-
-    if doc is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Document not found."
+        shutil.copyfileobj(
+            file.file,
+            temp
         )
 
-    media_type = mimetypes.guess_type(doc["filename"])[0] or "application/octet-stream"
+        temp_path=temp.name
 
-    return FileResponse(
-        doc["path"],
-        media_type=media_type,
-        filename=doc["filename"],
-        content_disposition_type="inline"
+
+
+    # build RAG
+    rag = RAGAssistant(
+        temp_path,
+        filename=file.filename
     )
 
-@app.get("/documents")
-def get_documents():
 
-    return [
-        {
-            "id": doc["id"],
-            "filename": doc["filename"],
-            "file_type": doc["file_type"],
-            "path": doc["path"]
-        }
-        for doc in documents
-    ]
+    # upload original file to Supabase Storage
+
+    storage_path = f"{user_id}/{file.filename}"
+
+
+    upload_document(
+        temp_path,
+        storage_path
+    )
+
+
+
+    # save database record
+
+    response = (
+        supabase
+        .table("documents")
+        .insert(
+            {
+                "user_id": user_id,
+                "filename": file.filename,
+                "file_type": extension[1:],
+                "storage_path": storage_path
+            }
+        )
+        .execute()
+    )
+
+
+    document_id = response.data[0]["id"]
+
+
+    # temporary until FAISS migration
+    rags[document_id] = rag
+
+
+
+    return {
+        "message":"Document uploaded successfully",
+        "document_id":document_id,
+        "filename":file.filename,
+        "chunks":len(rag.chunks)
+    }
+@app.get("/documents")
+def get_documents(
+    user_id:str = Depends(verify_token)
+):
+
+    response = (
+        supabase
+        .table("documents")
+        .select("*")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    print(response.data)
+    print("CURRENT USER:", user_id)
+
+    return response.data

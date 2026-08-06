@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check, Copy, File } from "lucide-react";
-import { openDocumentAtPage } from "../api/api";
+import { openDocumentAtPage } from "../lib/api";
 
 type Source = {
   filename: string;

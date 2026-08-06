@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Eye, Folder, Upload } from "lucide-react";
-import { fetchDocumentFile, getDocuments, uploadDocument } from "../api/api";
+import { fetchDocumentFile, getDocuments, uploadDocument } from "../lib/api";
 
 type Document = {
   id: number;
