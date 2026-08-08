@@ -30,12 +30,20 @@ class RAGAssistant:
     ):
 
         pages = extract_text(pdf_path, filename)
+        if not pages:
+            raise ValueError(
+                "No readable text found."
+            )
 
         self.chunks = chunk_documents(
             pages,
             chunk_size,
             overlap
         )
+        if not self.chunks:
+            raise ValueError(
+                "Document contains no extractable text"
+    )
 
         chunk_texts = [
             chunk["text"]

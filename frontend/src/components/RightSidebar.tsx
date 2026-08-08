@@ -1,21 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Eye, Folder, Upload } from "lucide-react";
 import { fetchDocumentFile, getDocuments, uploadDocument } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
 type Document = {
-  id: number;
+  id: string;
   filename: string;
   file_type: string;
   path: string;
 };
 
 type Props = {
-  selectedDocument: number | null;
-  setSelectedDocument: React.Dispatch<React.SetStateAction<number | null>>;
+  selectedDocument: string | null;
+  setSelectedDocument: React.Dispatch<React.SetStateAction<string | null>>;
   documents: Document[];
   setDocuments: React.Dispatch<React.SetStateAction<Document[]>>;
-  setFilterDocument: React.Dispatch<React.SetStateAction<number | null>>;
+  setFilterDocument: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 export default function RightSidebar({
@@ -27,12 +27,6 @@ export default function RightSidebar({
 }: Props) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [toast, setToast] = useState<string | null>(null);
-
-  function showToast(message: string) {
-    setToast(message);
-    setTimeout(() => setToast(null), 2500);
-  }
 
   async function loadDocuments() {
     const docs = await getDocuments();
@@ -45,7 +39,7 @@ export default function RightSidebar({
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
     } catch {
-      showToast("Document no longer available, please re-upload");
+      alert("Document no longer available, please re-upload");
       setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
       loadDocuments();
     }
@@ -60,6 +54,8 @@ export default function RightSidebar({
     loadDocuments();
   }, [user]);
 
+  const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".pptx"];
+
   async function handleUpload(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
@@ -68,18 +64,32 @@ export default function RightSidebar({
     const file = e.target.files[0];
     e.target.value = "";
 
+    const extension = file.name
+      .slice(file.name.lastIndexOf("."))
+      .toLowerCase();
+
+    if (!ALLOWED_EXTENSIONS.includes(extension)) {
+      alert("Only PDF, DOCX, and PPTX files are supported");
+      return;
+    }
+
     const alreadyUploaded = documents.some(
       (doc) => doc.filename.toLowerCase() === file.name.toLowerCase()
     );
 
     if (alreadyUploaded) {
-      showToast("Already uploaded");
+      alert("Already uploaded");
       return;
     }
 
-    await uploadDocument(file);
-
-    loadDocuments();
+    try {
+      await uploadDocument(file);
+      loadDocuments();
+    } catch (error) {
+      alert(
+        error instanceof Error ? error.message : "Failed to upload document"
+      );
+    }
   }
 
   return (
@@ -92,12 +102,6 @@ export default function RightSidebar({
         <Upload className="h-5 w-5" />
         Upload Document
       </button>
-
-      {toast && (
-        <div className="mb-3 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-center text-sm shadow-lg shadow-black/40">
-          {toast}
-        </div>
-      )}
 
       <input
         ref={fileInputRef}

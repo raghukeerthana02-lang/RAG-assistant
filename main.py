@@ -8,11 +8,17 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from rag_manager import rag_manager
 from fastapi import HTTPException, UploadFile, File
-
+import logging
 import os
 import tempfile
 import shutil
+import magic
 import uuid
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from fastapi import Request
+from fastapi.responses import JSONResponse
 
 import time
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +30,15 @@ app=FastAPI(
     description="Production-ready RAG chatbot built from scratch",
     version="1.0.0"
 )
+logging.basicConfig(
+    level=logging.INFO
+)
+
+logger = logging.getLogger(__name__)
+limiter=Limiter(
+    key_func=get_remote_address
+)
+app.state.limiter=limiter
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5174"],
@@ -31,11 +46,42 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.middleware("http")
+async def security_headers(request, call_next):
+
+    response = await call_next(request)
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    return response
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(
+    request: Request,
+    exc: RateLimitExceeded
+):
+
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail":"Too many requests. Please try again later."
+        }
+    )
+
 ALLOWED_EXTENSIONS = {
     ".pdf",
     ".docx",
     ".pptx"
 }
+ALLOWED_MIME = {
+    "application/pdf",
+
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+}
+MAX_FILE_SIZE = 10 * 1024 * 1024
 class Source(BaseModel):
     filename: str
     page: int
@@ -61,18 +107,20 @@ def _require_valid_document_id(document_id: str):
 
 
 @app.post("/chat",response_model=ChatResponse)
+@limiter.limit("20/minute")
 def chat(
-    request: ChatRequest,
+    request: Request,
+    chat_request: ChatRequest,
     user_id: str = Depends(verify_token)
 ):
 
-    _require_valid_document_id(request.document_id)
+    _require_valid_document_id(chat_request.document_id)
 
     doc = (
         supabase
         .table("documents")
         .select("*")
-        .eq("id", request.document_id)
+        .eq("id", chat_request.document_id)
         .eq("user_id", user_id)
         .execute()
     )
@@ -84,7 +132,7 @@ def chat(
         )
 
     rag = rag_manager.load_document(
-        request.document_id,
+        chat_request.document_id,
         user_id
     )
 
@@ -94,20 +142,41 @@ def chat(
             detail="Document not found."
         )
 
-    response = rag.ask(request.question)
+    try:
+        response = rag.ask(chat_request.question)
+
+    except Exception:
+        logger.exception(
+            "RAG generation failed"
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail="AI service unavailable"
+        )
 
     return ChatResponse(
         answer=response["answer"],
         sources=response["sources"]
     )
 
-
 @app.post("/upload")
-def upload_pdf(
+@limiter.limit("5/minute")
+async def upload_pdf(
+    request: Request,
     file: UploadFile = File(...),
     user_id: str = Depends(verify_token)
 ):
 
+    contents = await file.read()
+
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="File too large. Maximum size is 10MB."
+        )
+
+    file.file.seek(0)
     extension = Path(file.filename).suffix.lower()
 
 
@@ -116,7 +185,15 @@ def upload_pdf(
             status_code=400,
             detail="Supported files: PDF, DOCX, PPTX"
         )
-
+    mime = magic.from_buffer(
+    contents,
+    mime=True
+)
+    if mime not in ALLOWED_MIME:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type"
+        )
 
     # check duplicate filename
     existing = (
@@ -200,7 +277,8 @@ def upload_pdf(
         )
 
     finally:
-        os.remove(temp_path)
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 
     return {
@@ -210,7 +288,9 @@ def upload_pdf(
         "chunks":len(rag.chunks)
     }
 @app.get("/documents")
+@limiter.limit("30/minute")
 def get_documents(
+    request: Request,
     user_id:str = Depends(verify_token)
 ):
 
@@ -266,3 +346,4 @@ def get_document_file(
     return {
         "url": signed_url["signedURL"]
     }
+

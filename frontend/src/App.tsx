@@ -45,12 +45,12 @@ export type Message = {
 export type Conversation = {
   id: number;
   title: string;
-  documentId: number;
+  documentId: string;
   messages: Message[];
 };
 
 export type Document = {
-  id: number;
+  id: string;
   filename: string;
   file_type: string;
   path: string;
@@ -65,7 +65,7 @@ export default function App() {
 
 
   const [selectedDocument, setSelectedDocument] =
-    useState<number | null>(null);
+    useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
 
@@ -130,7 +130,7 @@ export default function App() {
   const [documents, setDocuments] = useState<Document[]>([]);
 
   const [filterDocument, setFilterDocument] =
-    useState<number | null>(null);
+    useState<string | null>(null);
 
   // Re-apply the correct default whenever the viewport crosses the
   // desktop/mobile boundary live (window resize, devtools docking,

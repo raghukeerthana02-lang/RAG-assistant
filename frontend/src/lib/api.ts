@@ -37,11 +37,11 @@ export async function apiFetch(
 
 }
 
-export function getDocumentFileUrl(documentId: number) {
+export function getDocumentFileUrl(documentId: string) {
     return `${API_URL}/documents/${documentId}/file`;
 }
 
-export async function fetchDocumentFile(documentId: number) {
+export async function fetchDocumentFile(documentId: string) {
     const response = await apiFetch(`/documents/${documentId}/file`);
 
     if (!response.ok) {
@@ -60,7 +60,7 @@ export async function fetchDocumentFile(documentId: number) {
     return await fileResponse.blob();
 }
 
-export async function openDocumentAtPage(documentId: number, page: number) {
+export async function openDocumentAtPage(documentId: string, page: number) {
     const blob = await fetchDocumentFile(documentId);
     const url = URL.createObjectURL(blob);
 
@@ -84,11 +84,16 @@ export async function uploadDocument(file: File) {
         body: formData,
     });
 
+    if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.detail ?? "Failed to upload document");
+    }
+
     return await response.json();
 }
 
 export async function askQuestion(
-    documentId: number,
+    documentId: string,
     question: string
 ) {
     const response = await apiFetch("/chat", {

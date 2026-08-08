@@ -11,7 +11,7 @@ type Props = {
   message: string;
   isUser: boolean;
   sources?: Source[];
-  documentId?: number | null;
+  documentId?: string | null;
 };
 
 export default function MessageBubble({

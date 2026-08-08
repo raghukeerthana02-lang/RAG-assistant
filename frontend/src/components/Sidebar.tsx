@@ -20,12 +20,12 @@ type Message = {
 type Conversation = {
   id: number;
   title: string;
-  documentId: number;
+  documentId: string;
   messages: Message[];
 };
 
 type Document = {
-  id: number;
+  id: string;
   filename: string;
   file_type: string;
   path: string;
@@ -40,14 +40,14 @@ type Props = {
   setConversations: React.Dispatch<
     React.SetStateAction<Conversation[]>
   >;
-  selectedDocument: number | null;
+  selectedDocument: string | null;
   setSelectedDocument: React.Dispatch<
-    React.SetStateAction<number | null>
+    React.SetStateAction<string | null>
   >;
   documents: Document[];
-  filterDocument: number | null;
+  filterDocument: string | null;
   setFilterDocument: React.Dispatch<
-    React.SetStateAction<number | null>
+    React.SetStateAction<string | null>
   >;
 };
 
@@ -164,7 +164,7 @@ export default function Sidebar({
     setOpenMenuId(null);
   }
 
-  function handleChangeSource(chatId: number, docId: number) {
+  function handleChangeSource(chatId: number, docId: string) {
     setConversations((prev) =>
       prev.map((c) =>
         c.id === chatId ? { ...c, documentId: docId } : c

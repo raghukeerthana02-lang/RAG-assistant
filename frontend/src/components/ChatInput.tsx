@@ -11,13 +11,13 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   sources?: Source[];
-  documentId?: number;
+  documentId?: string;
 };
 
 type Conversation = {
   id: number;
   title: string;
-  documentId: number;
+  documentId: string;
   messages: Message[];
 };
 
@@ -30,7 +30,7 @@ type Props = {
   setConversations: React.Dispatch<
     React.SetStateAction<Conversation[]>
   >;
-  selectedDocument: number | null;
+  selectedDocument: string | null;
   loading: boolean;
   setLoading: React.Dispatch<
     React.SetStateAction<boolean>

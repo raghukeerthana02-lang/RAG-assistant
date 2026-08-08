@@ -13,18 +13,18 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   sources?: Source[];
-  documentId?: number;
+  documentId?: string;
 };
 
 type Conversation = {
   id: number;
   title: string;
-  documentId: number;
+  documentId: string;
   messages: Message[];
 };
 
 type Document = {
-  id: number;
+  id: string;
   filename: string;
   file_type: string;
   path: string;
@@ -44,7 +44,7 @@ type Props = {
     React.SetStateAction<Conversation[]>
   >;
 
-  selectedDocument: number | null;
+  selectedDocument: string | null;
   documents: Document[];
 };
 
