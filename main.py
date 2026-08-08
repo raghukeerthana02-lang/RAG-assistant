@@ -168,6 +168,8 @@ async def upload_pdf(
     user_id: str = Depends(verify_token)
 ):
 
+    safe_filename = os.path.basename(file.filename)
+
     contents = await file.read()
 
     if len(contents) > MAX_FILE_SIZE:
@@ -177,7 +179,7 @@ async def upload_pdf(
         )
 
     file.file.seek(0)
-    extension = Path(file.filename).suffix.lower()
+    extension = Path(safe_filename).suffix.lower()
 
 
     if extension not in ALLOWED_EXTENSIONS:
@@ -201,7 +203,7 @@ async def upload_pdf(
         .table("documents")
         .select("id")
         .eq("user_id", user_id)
-        .eq("filename", file.filename)
+        .eq("filename", safe_filename)
         .execute()
     )
 
@@ -238,7 +240,7 @@ async def upload_pdf(
             .insert(
                 {
                     "user_id": user_id,
-                    "filename": file.filename,
+                    "filename": safe_filename,
                     "file_type": extension[1:],
                     "storage_path": ""
                 }
@@ -251,7 +253,7 @@ async def upload_pdf(
 
         # upload original file to Supabase Storage, namespaced by document_id
 
-        storage_path = f"{user_id}/{document_id}/{file.filename}"
+        storage_path = f"{user_id}/{document_id}/{safe_filename}"
 
         upload_document(
             temp_path,
@@ -273,7 +275,7 @@ async def upload_pdf(
             document_id,
             user_id,
             path=temp_path,
-            filename=file.filename
+            filename=safe_filename
         )
 
     finally:
@@ -284,7 +286,7 @@ async def upload_pdf(
     return {
         "message":"Document uploaded successfully",
         "document_id":document_id,
-        "filename":file.filename,
+        "filename":safe_filename,
         "chunks":len(rag.chunks)
     }
 @app.get("/documents")
@@ -305,7 +307,9 @@ def get_documents(
     return response.data
 
 @app.get("/documents/{document_id}/file")
+@limiter.limit("30/minute")
 def get_document_file(
+    request: Request,
     document_id: str,
     user_id: str = Depends(verify_token)
 ):
