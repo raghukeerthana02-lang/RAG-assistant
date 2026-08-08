@@ -1,641 +1,250 @@
-# RAG Assistant Roadmap
-
-## Project Goal
-
-Build a production-quality Retrieval-Augmented Generation (RAG) assistant from scratch while understanding every component instead of relying on frameworks.
-
-The goal is to learn retrieval systems, backend engineering, deployment, and production RAG architecture.
-
+# RAG Assistant
+ 
+A production-ready, multi-user Retrieval Augmented Generation (RAG) application that lets users upload documents, chat with them, and receive AI-generated answers with source citations.
+ 
+The system combines semantic search, keyword retrieval, reranking, authentication, secure storage, and persistent vector indexes into a complete document intelligence pipeline.
+ 
 ---
-
-# Current Stack
-
-Frontend
+ 
+## Features
+ 
+### Authentication & User Management
+- Secure signup/login using Supabase Authentication
+- JWT-based authentication between frontend and backend
+- User-isolated documents and conversations
+- Protected API routes
+### Document Management
+- Upload PDF, DOCX, and PPTX files
+- Secure document storage
+- User-specific document access
+- Persistent document metadata
+- Source switching between documents
+### RAG Pipeline
+- Document text extraction
+- Intelligent chunking
+- Embedding generation
+- FAISS vector similarity search
+- BM25 keyword retrieval
+- Hybrid retrieval (dense + sparse)
+- Cross-encoder reranking
+- Context-aware answer generation
+- Source citations with page references
+### Chat Features
+- Chat with uploaded documents
+- Persistent conversations
+- Rename conversations
+- Delete conversations
+- Document-based chat filtering
+### Security Features
+- JWT authentication
+- User ownership validation
+- Supabase Row Level Security (RLS)
+- Storage isolation
+- File extension validation
+- File size validation
+- MIME type validation
+- Rate limiting
+- Prompt injection protection
+- Environment-based secret management
+---
+ 
+## Architecture
+ 
+### RAG Pipeline Flow (Query Path)
+ 
+```mermaid
+flowchart TD
+    A[User Query] --> B[FastAPI /chat endpoint]
+    B --> C[JWT Validation]
+    C --> D[Query Embedding]
+    D --> E[FAISS Vector Search]
+    D --> F[BM25 Keyword Search]
+    E --> G[Hybrid Retrieval Merge]
+    F --> G
+    G --> H[Cross-Encoder Reranking]
+    H --> I[Prompt Builder<br/>context + citations]
+    I --> J[Groq LLM]
+    J --> K[Answer + Source Citations]
+    K --> L[Response to User]
+```
+ 
+### Authentication Flow
+ 
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant R as React Frontend
+    participant S as Supabase Auth
+    participant F as FastAPI Backend
+    participant D as Supabase DB/Storage
+ 
+    U->>R: Enter credentials (signup/login)
+    R->>S: supabase.auth.signIn / signUp
+    S-->>R: JWT access token
+    R->>F: API request + Authorization Bearer token
+    F->>S: Verify token (get_user)
+    S-->>F: Valid user identity
+    F->>D: Query scoped to user_id (RLS enforced)
+    D-->>F: User-owned data only
+    F-->>R: Response
+```
+ 
+### Document Upload Flow
+ 
+```mermaid
+flowchart LR
+    A[User Uploads File] --> B{Validation}
+    B -->|Extension, MIME type, Size| C[Reject if invalid]
+    B -->|Valid| D[Store in Supabase Storage]
+    D --> E[Extract Text<br/>PDF / DOCX / PPTX]
+    E --> F[Chunking]
+    F --> G[Embedding Generation]
+    G --> H[FAISS Index<br/>per user]
+    G --> I[BM25 Index<br/>per user]
+    D --> J[Save Metadata<br/>Supabase PostgreSQL]
+```
+ 
+### Final Architecture Summary
+ 
+```mermaid
+flowchart TD
+    U[User] --> RA[React Application]
+    RA -->|JWT| FA[FastAPI Backend]
+    FA --> AUTH[Authentication + Authorization]
+    AUTH --> SB[Supabase]
+    SB --> SBA[Auth]
+    SB --> SBD[PostgreSQL]
+    SB --> SBS[Storage]
+    AUTH --> RAG[RAG Engine]
+    RAG --> CH[Chunking]
+    RAG --> EMB[Embeddings]
+    RAG --> FAISS[FAISS]
+    RAG --> BM25[BM25]
+    RAG --> RR[Reranking]
+    RAG --> LLM[Groq LLM]
+    LLM --> ANS[Answer + Citations]
+```
+ 
+---
+ 
+## Tech Stack
+ 
+**Frontend**
 - React
 - TypeScript
-- TailwindCSS
-- Vite
-
-Backend
+- Tailwind CSS
+- Supabase Client
+**Backend**
 - FastAPI
 - Python
-
-LLM
-- Groq
-- Llama-3.3-70B-Versatile
-
-Embeddings
-- sentence-transformers/all-MiniLM-L6-v2
-
-Vector Database
+- Pydantic
+**Database & Storage**
+- Supabase PostgreSQL
+- Supabase Storage
+- Supabase Authentication
+**AI / ML**
 - FAISS
-
-Supported Files
-- PDF
-- PPTX
-- DOCX
-
----
-
-# Completed ✅
-
-## Backend
-
-### Document Upload
-
-- Upload endpoint
-- Supports PDF
-- Supports PPTX
-- Supports DOCX
-- Extract text from each format
-
----
-
-### Chunking
-
-Implemented custom chunking
-
-Features
-
-- Configurable chunk size
-- Configurable overlap
-- Validation
-- Merge tiny last chunk
-
----
-
-### Embeddings
-
-SentenceTransformer
-
-```
-all-MiniLM-L6-v2
-```
-
-Each chunk is embedded.
-
----
-
-### Vector Search
-
-Implemented
-
-```
-FAISS IndexFlatL2
-```
-
-Pipeline
-
-```
-Query
-
-↓
-
-Embedding
-
-↓
-
-FAISS
-
-↓
-
-Top K chunks
-```
-
----
-
-### Prompt Builder
-
-Custom prompt restricting model to answer ONLY from retrieved context.
-
----
-
-### LLM
-
-Groq API
-
-Model
-
-```
-llama-3.3-70b-versatile
-```
-
----
-
-### RAG Pipeline
-
-Current pipeline
-
-```
-Upload
-
-↓
-
-Extract text
-
-↓
-
-Chunk
-
-↓
-
-Embedding
-
-↓
-
-FAISS
-
-↓
-
-Retrieve Top-K
-
-↓
-
-Prompt Builder
-
-↓
-
-Groq
-
-↓
-
-Answer
-```
-
----
-
-### FastAPI
-
-Implemented endpoints
-
-- Upload document
-- Ask question
-- List uploaded documents
-
----
-
-# Frontend
-
-Dark ChatGPT-inspired interface.
-
-Completed
-
-### Chat Window
-
-- User messages
-- Assistant messages
-- Thinking animation
-- Welcome message
-- Auto-scroll
-- Enter to send
-- Multiline input
-
----
-
-### Sidebar
-
-Implemented
-
-- New Chat
-- Rename Chat
-- Delete Chat
-- Change Source
-- Search chats
-- Responsive collapse
-- LocalStorage persistence
-
----
-
-### Right Sidebar
-
-Implemented
-
-- Uploaded documents
-- File selection
-- Highlight selected file
-
----
-
-### Chat Management
-
-Implemented
-
-- Multiple chats
-- Chat history
-- Chat titles
-- Search
-- Local persistence
-- Filter chats by document
-- "All Chats" view
-
----
-
-### Document Management
-
-Implemented
-
-- Upload multiple files
-- Multiple formats
-- Filter conversations by file
-- Change conversation source
-
----
-
-### UX
-
-Implemented
-
-- Typing indicator
-- Loading animation
-- Responsive sidebars
-- Persistent conversations
-- Dark theme
-
----
-
-# Current Architecture
-
-```
-React
-
-↓
-
-FastAPI
-
-↓
-
-Document Loader
-
-↓
-
-Chunker
-
-↓
-
-Embeddings
-
-↓
-
-FAISS
-
-↓
-
-Top K
-
-↓
-
-Groq
-
-↓
-
-Answer
-
-↓
-
-React
-```
-
----
-                 Query
-                   |
-        ┌──────────┴──────────┐
-        ▼                     ▼
-      FAISS                 BM25
-        |                     |
-        └──────────┬──────────┘
-                   ▼
-          Hybrid Retrieval
-          (candidate pool)
-                   |
-                   ▼
-            Cross Encoder
-             Reranking
-                   |
-                   ▼
-          Best 4 chunks
-                   |
-                   ▼
-            Prompt Builder
-                   |
-                   ▼
-              Groq LLM
-                   |
-                   ▼
-        Answer + Citations
-# Remaining Roadmap
-
-## Phase 1
-
-### Metadata
-
-Store metadata for every chunk
-
-```
-{
-    text,
-    filename,
-    page,
-    chunk_id
-}
-```
-
-Purpose
-
-- citations
-- future reranking
-- document references
-
----
-
-### Citations
-
-Return
-
-```
-Answer
-
-Sources
-
-filename
-
-page / slide
-```
-
-Frontend displays clickable sources.
-
----
-
-## Phase 2
-
-### BM25
-
-Implement lexical retrieval.
-
-Pipeline
-
-```
-Query
-
-↓
-
-BM25
-
-↓
-
-Results
-```
-
----
-
-### Hybrid Retrieval
-
-```
-Query
-
-↓
-
-Embedding
-
-↓
-
-FAISS
-
-+
-
-BM25
-
-↓
-
-Merge
-
-↓
-
-Top Candidates
-```
-
----
-
-### Reranking
-
-Pipeline
-
-```
-Top 20
-
-↓
-
-Cross Encoder
-
-↓
-
-Best 4
-
-↓
-
-LLM
-```
-
-Possible models
-
-- bge-reranker
-- ms-marco MiniLM reranker
-
----
-
-## Phase 3
-
-### Response Cache
-
-Avoid repeated LLM calls.
-
-Possible
-
-- in-memory
-- Redis (future)
-
----
-
-### Logging
-
-Store
-
-- question
-- retrieved chunks
-- latency
-- token usage
-
----
-
-### Error Handling
-
-Graceful handling for
-
-- upload failures
-- unsupported files
-- Groq errors
-- rate limits
-
----
-
-### Guardrails
-
-Reject
-
-- empty documents
-- unsupported formats
-- invalid prompts
-
----
-
-## Phase 4
-
-### Docker
-
-Dockerize
-
-Frontend
-
-Backend
-
-Single
-
-```
-docker compose up
-```
-
----
-
-### Deployment
-
-Deploy
-
-Frontend
-
-- Vercel
-
-Backend
-
-- Render
-or
-- Railway
-
----
-
-### Environment Variables
-
-Move
-
-- API Keys
-- Config
-
-into
-
-```
-.env
-```
-
----
-
-## Stretch Goals
-
-If time permits
-
-- Streaming responses
-- Semantic caching
-- Query rewriting
-- Multi-query retrieval
-- Parent-child chunking
-- Query expansion
-- Image extraction from PDFs
-- OCR support
-- Table extraction
-- User authentication
-- PostgreSQL
-- Conversation database
-- Redis cache
-- Observability dashboard
-
----
-
-# Final Production Pipeline
-
-```
-Upload
-
-↓
-
-Extract Text
-
-↓
-
-Chunk
-
-↓
-
-Metadata
-
-↓
-
-Embeddings
-
-↓
-
-FAISS
-
-+
-
-BM25
-
-↓
-
-Merge
-
-↓
-
-Reranker
-
-↓
-
-Best Chunks
-
-↓
-
-Prompt Builder
-
-↓
-
-Groq
-
-↓
-
-Answer + Citations
-
-↓
-
-Cache
-
-↓
-
-Frontend
-```
-
----
-
-# Learning Goals
-
-By the end of this project, understand
-
-- Chunking strategies
-- Embeddings
-- Vector search
 - BM25
-- Hybrid retrieval
-- Reranking
-- Prompt engineering
-- FastAPI
-- React integration
-- Docker
-- Deployment
-- Production RAG architecture
-
-without relying on LangChain or LlamaIndex abstractions.
+- Sentence Transformers
+- Cross-Encoder Reranking
+- Groq LLM API
+---
+ 
+## Project Structure
+ 
+```
+RAG-assistant/
+├── backend/
+│   ├── main.py
+│   ├── rag.py
+│   ├── rag_manager.py
+│   ├── document_loader.py
+│   ├── chunker.py
+│   ├── embedding.py
+│   ├── vector_store.py
+│   ├── bm25_store.py
+│   ├── reranker.py
+│   ├── prompt_builder.py
+│   ├── llm.py
+│   ├── auth.py
+│   └── storage.py
+│
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── lib/
+│   │   └── api.ts
+│
+├── requirements.txt
+├── .env.example
+└── README.md
+```
+ 
+---
+ 
+## Local Setup
+ 
+### Backend
+ 
+```bash
+# Create environment
+python -m venv venv
+ 
+# Activate
+venv\Scripts\activate
+ 
+# Install dependencies
+pip install -r requirements.txt
+ 
+# Create .env
+SUPABASE_URL=
+SUPABASE_SERVICE_KEY=
+GROQ_API_KEY=
+ 
+# Run
+uvicorn main:app --reload
+```
+ 
+### Frontend
+ 
+```bash
+# Install dependencies
+npm install
+ 
+# Run
+npm run dev
+```
+ 
+---
+ 
+## API Overview
+ 
+| Endpoint | Purpose |
+|---|---|
+| `POST /upload` | Upload documents |
+| `GET /documents` | Retrieve user documents |
+| `POST /chat` | Ask questions |
+| `GET /documents/{id}/file` | Access document |
+ 
+---
+ 
+## Future Improvements
+ 
+- Streaming responses
+- OCR support for scanned PDFs
+- Background document processing
+- Advanced analytics
+- Conversation memory improvements
+---
+ 
+## What I Learned Building This
+ 
+- Designing a complete AI application architecture
+- Building production RAG pipelines
+- Authentication and authorization flows
+- Vector databases and retrieval systems
+- Hybrid search techniques
+- Backend API design
+- Secure document handling
+- Deployment workflows
