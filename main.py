@@ -6,12 +6,14 @@ from fastapi import Depends
 from supabase_client import supabase
 from fastapi import FastAPI
 from pydantic import BaseModel
-from rag import RAGAssistant
+from rag_manager import rag_manager
 from fastapi import HTTPException, UploadFile, File
-from fastapi.responses import FileResponse
+
+import os
 import tempfile
 import shutil
-import mimetypes
+import uuid
+
 import time
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
@@ -34,13 +36,11 @@ ALLOWED_EXTENSIONS = {
     ".docx",
     ".pptx"
 }
-documents = []
-rags={}
 class Source(BaseModel):
     filename: str
     page: int
 class ChatRequest(BaseModel):
-    document_id: int
+    document_id: str
     question:str
 class ChatResponse(BaseModel):
     answer: str
@@ -50,9 +50,43 @@ def home():
     return {
         "status": "running"
     }
+def _require_valid_document_id(document_id: str):
+    try:
+        uuid.UUID(document_id)
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found."
+        )
+
+
 @app.post("/chat",response_model=ChatResponse)
-def chat(request:ChatRequest):
-    rag = rags.get(request.document_id)
+def chat(
+    request: ChatRequest,
+    user_id: str = Depends(verify_token)
+):
+
+    _require_valid_document_id(request.document_id)
+
+    doc = (
+        supabase
+        .table("documents")
+        .select("*")
+        .eq("id", request.document_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    if not doc.data:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found."
+        )
+
+    rag = rag_manager.load_document(
+        request.document_id,
+        user_id
+    )
 
     if rag is None:
         raise HTTPException(
@@ -116,49 +150,57 @@ def upload_pdf(
         temp_path=temp.name
 
 
+    try:
 
-    # build RAG
-    rag = RAGAssistant(
-        temp_path,
-        filename=file.filename
-    )
+        # create database record first so we have a document_id
+        # to namespace the storage path and FAISS store with
 
-
-    # upload original file to Supabase Storage
-
-    storage_path = f"{user_id}/{file.filename}"
-
-
-    upload_document(
-        temp_path,
-        storage_path
-    )
-
-
-
-    # save database record
-
-    response = (
-        supabase
-        .table("documents")
-        .insert(
-            {
-                "user_id": user_id,
-                "filename": file.filename,
-                "file_type": extension[1:],
-                "storage_path": storage_path
-            }
+        response = (
+            supabase
+            .table("documents")
+            .insert(
+                {
+                    "user_id": user_id,
+                    "filename": file.filename,
+                    "file_type": extension[1:],
+                    "storage_path": ""
+                }
+            )
+            .execute()
         )
-        .execute()
-    )
+
+        document_id = response.data[0]["id"]
 
 
-    document_id = response.data[0]["id"]
+        # upload original file to Supabase Storage, namespaced by document_id
+
+        storage_path = f"{user_id}/{document_id}/{file.filename}"
+
+        upload_document(
+            temp_path,
+            storage_path
+        )
+
+        (
+            supabase
+            .table("documents")
+            .update({"storage_path": storage_path})
+            .eq("id", document_id)
+            .execute()
+        )
 
 
-    # temporary until FAISS migration
-    rags[document_id] = rag
+        # build RAG and persist it to the FAISS store
 
+        rag = rag_manager.load_document(
+            document_id,
+            user_id,
+            path=temp_path,
+            filename=file.filename
+        )
+
+    finally:
+        os.remove(temp_path)
 
 
     return {
@@ -179,7 +221,48 @@ def get_documents(
         .eq("user_id", user_id)
         .execute()
     )
-    print(response.data)
-    print("CURRENT USER:", user_id)
 
     return response.data
+
+@app.get("/documents/{document_id}/file")
+def get_document_file(
+    document_id: str,
+    user_id: str = Depends(verify_token)
+):
+
+    _require_valid_document_id(document_id)
+
+    response = (
+        supabase
+        .table("documents")
+        .select("*")
+        .eq("id", document_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+
+    if not response.data:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+
+    document = response.data[0]
+
+
+    signed_url = (
+        supabase
+        .storage
+        .from_("documents")
+        .create_signed_url(
+            document["storage_path"],
+            60
+        )
+    )
+
+
+    return {
+        "url": signed_url["signedURL"]
+    }

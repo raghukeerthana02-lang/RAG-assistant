@@ -298,7 +298,7 @@ export default function Sidebar({
                 <FilePenLine className="h-3.5 w-3.5 text-white shrink-0" />
                 <span className="truncate">
                   {documents.find((d) => d.id === chat.documentId)
-                    ?.filename ?? `Document #${chat.documentId}`}
+                    ?.filename ?? "Document unavailable"}
                 </span>
               </div>
 

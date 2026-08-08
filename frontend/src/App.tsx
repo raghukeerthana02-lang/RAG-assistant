@@ -3,8 +3,19 @@ import { Folder, Menu } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import ChatWindow from "./components/ChatWindow";
 import RightSidebar from "./components/RightSidebar";
+import { useAuth } from "./context/AuthContext";
 const CONVERSATIONS_KEY = "rag-assistant:conversations";
 const SELECTED_CONVERSATION_KEY = "rag-assistant:selected-conversation";
+
+// Chats are scoped per logged-in user so switching accounts on the
+// same browser never shows (or overwrites) another user's chats.
+function conversationsKey(userId: string) {
+  return `${CONVERSATIONS_KEY}:${userId}`;
+}
+
+function selectedConversationKey(userId: string) {
+  return `${SELECTED_CONVERSATION_KEY}:${userId}`;
+}
 // Matches Tailwind's `xl:` prefix used throughout this file. Wider than
 // Tailwind's `lg` (1024px) so tablets like iPad Mini (1024px landscape)
 // still get the overlay/hamburger treatment instead of the desktop push layout.
@@ -46,49 +57,75 @@ export type Document = {
 };
 
 export default function App() {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+
   const [leftOpen, setLeftOpen] = useState(isDesktopViewport);
   const [rightOpen, setRightOpen] = useState(isDesktopViewport);
-  
+
 
   const [selectedDocument, setSelectedDocument] =
     useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
 
-  const [conversations, setConversations] = useState<Conversation[]>(() =>
-    loadFromStorage<Conversation[]>(CONVERSATIONS_KEY, [])
-  );
+  const [conversations, setConversations] = useState<Conversation[]>([]);
 
   const [selectedConversation, setSelectedConversation] =
-    useState<number | null>(() =>
-      loadFromStorage<number | null>(SELECTED_CONVERSATION_KEY, null)
+    useState<number | null>(null);
+
+  // Load this user's chats whenever the logged-in user changes
+  // (login, logout, or switching accounts on the same browser).
+  useEffect(() => {
+    if (!userId) {
+      setConversations([]);
+      setSelectedConversation(null);
+      return;
+    }
+
+    setConversations(
+      loadFromStorage<Conversation[]>(conversationsKey(userId), [])
     );
 
-  useEffect(() => {
-    localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
-  }, [conversations]);
+    setSelectedConversation(
+      loadFromStorage<number | null>(selectedConversationKey(userId), null)
+    );
+  }, [userId]);
 
   useEffect(() => {
+    if (!userId) return;
+
     localStorage.setItem(
-      SELECTED_CONVERSATION_KEY,
+      conversationsKey(userId),
+      JSON.stringify(conversations)
+    );
+  }, [conversations, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    localStorage.setItem(
+      selectedConversationKey(userId),
       JSON.stringify(selectedConversation)
     );
-  }, [selectedConversation]);
+  }, [selectedConversation, userId]);
 
   // Keep conversations in sync across tabs, so a chat deleted in one
   // tab can't be sent to from another tab's stale state.
   useEffect(() => {
+    if (!userId) return;
+
+    const key = conversationsKey(userId);
+
     function handleStorage(e: StorageEvent) {
-      if (e.key === CONVERSATIONS_KEY) {
-        setConversations(
-          loadFromStorage<Conversation[]>(CONVERSATIONS_KEY, [])
-        );
+      if (e.key === key) {
+        setConversations(loadFromStorage<Conversation[]>(key, []));
       }
     }
 
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+  }, [userId]);
 
   const [documents, setDocuments] = useState<Document[]>([]);
 

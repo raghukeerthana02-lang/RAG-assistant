@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Eye, Folder, Upload } from "lucide-react";
 import { fetchDocumentFile, getDocuments, uploadDocument } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 
 type Document = {
   id: number;
@@ -24,6 +25,7 @@ export default function RightSidebar({
   setDocuments,
   setFilterDocument,
 }: Props) {
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -50,8 +52,13 @@ export default function RightSidebar({
   }
 
   useEffect(() => {
+    if (!user) {
+      setDocuments([]);
+      return;
+    }
+
     loadDocuments();
-  }, []);
+  }, [user]);
 
   async function handleUpload(
     e: React.ChangeEvent<HTMLInputElement>

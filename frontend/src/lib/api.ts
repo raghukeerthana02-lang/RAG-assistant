@@ -49,7 +49,15 @@ export async function fetchDocumentFile(documentId: number) {
         throw new Error(body?.detail ?? "Failed to open document");
     }
 
-    return await response.blob();
+    const { url } = await response.json();
+
+    const fileResponse = await fetch(url);
+
+    if (!fileResponse.ok) {
+        throw new Error("Failed to download document");
+    }
+
+    return await fileResponse.blob();
 }
 
 export async function openDocumentAtPage(documentId: number, page: number) {

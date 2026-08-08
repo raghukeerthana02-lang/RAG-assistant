@@ -1,7 +1,10 @@
+import json
+import os
+
 from document_loader import extract_text
 from chunker import chunk_documents
 from embedding import embed_chunks, embed_query
-from vector_store import build_index
+from vector_store import build_index, save_index, load_index
 from bm25_store import build_bm25
 from prompt_builder import build_prompt
 from llm import generate_answer
@@ -43,6 +46,42 @@ class RAGAssistant:
 
         self.index = build_index(embeddings)
         self.bm25 = build_bm25(self.chunks)
+
+    @classmethod
+    def from_store(cls, store_dir):
+
+        self = cls.__new__(cls)
+
+        with open(
+            os.path.join(store_dir, "metadata.json"),
+            "r",
+            encoding="utf-8"
+        ) as f:
+            self.chunks = json.load(f)
+
+        self.index = load_index(
+            os.path.join(store_dir, "index.faiss")
+        )
+
+        self.bm25 = build_bm25(self.chunks)
+
+        return self
+
+    def save(self, store_dir):
+
+        os.makedirs(store_dir, exist_ok=True)
+
+        save_index(
+            self.index,
+            os.path.join(store_dir, "index.faiss")
+        )
+
+        with open(
+            os.path.join(store_dir, "metadata.json"),
+            "w",
+            encoding="utf-8"
+        ) as f:
+            json.dump(self.chunks, f)
 
     def ask(self, query):
 

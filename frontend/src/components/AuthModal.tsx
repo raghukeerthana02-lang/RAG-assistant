@@ -36,6 +36,7 @@ export default function AuthModal({ open, onClose }: Props) {
         email,
         password,
       });
+    
 
       setLoading(false);
 

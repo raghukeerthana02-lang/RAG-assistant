@@ -164,22 +164,6 @@ export default function UserMenu(){
                 >
 
 
-                    <button
-                    className="
-                    w-full
-                    text-left
-                    px-3
-                    py-2
-                    rounded-lg
-                    text-sm
-                    text-gray-300
-                    hover:bg-white/10
-                    "
-                    >
-                        Settings
-                    </button>
-
-
 
                     <button
                     onClick={logout}
