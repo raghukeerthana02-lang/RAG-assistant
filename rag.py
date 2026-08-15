@@ -54,6 +54,7 @@ class RAGAssistant:
 
         self.index = build_index(embeddings)
         self.bm25 = build_bm25(self.chunks)
+        self._answer_cache = {}
 
     @classmethod
     def from_store(cls, store_dir):
@@ -72,6 +73,7 @@ class RAGAssistant:
         )
 
         self.bm25 = build_bm25(self.chunks)
+        self._answer_cache = {}
 
         return self
 
@@ -92,6 +94,11 @@ class RAGAssistant:
             json.dump(self.chunks, f)
 
     def ask(self, query):
+
+        cache_key = query.strip().lower()
+
+        if cache_key in self._answer_cache:
+            return self._answer_cache[cache_key]
 
         query_embedding = embed_query(query)
 
@@ -146,7 +153,12 @@ class RAGAssistant:
                     }
                 )
 
-        return {
+        result = {
             "answer": answer,
-            "sources": sources
+            "sources": sources,
+            "context": context
         }
+
+        self._answer_cache[cache_key] = result
+
+        return result

@@ -1,6 +1,19 @@
 from dotenv import load_dotenv
 from pathlib import Path
 load_dotenv()
+
+import os
+import sentry_sdk
+
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        traces_sample_rate=0.1,
+        send_default_pii=False
+    )
+
 from auth import verify_token
 from fastapi import Depends
 from supabase_client import supabase
@@ -9,7 +22,7 @@ from pydantic import BaseModel
 from rag_manager import rag_manager
 from fastapi import HTTPException, UploadFile, File
 import logging
-import os
+import random
 import tempfile
 import shutil
 import magic
@@ -17,8 +30,9 @@ import uuid
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from fastapi import Request
+from fastapi import Request, BackgroundTasks
 from fastapi.responses import JSONResponse
+from eval_logging import log_faithfulness_sample
 
 import time
 from fastapi.middleware.cors import CORSMiddleware
@@ -56,6 +70,25 @@ async def security_headers(request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
     return response
+
+@app.middleware("http")
+async def access_log(request, call_next):
+
+    start = time.time()
+
+    response = await call_next(request)
+
+    duration_ms = (time.time() - start) * 1000
+
+    logger.info(
+        "%s %s -> %s (%.1fms)",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms
+    )
+
+    return response
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(
     request: Request,
@@ -82,6 +115,7 @@ ALLOWED_MIME = {
     "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 }
 MAX_FILE_SIZE = 10 * 1024 * 1024
+FAITHFULNESS_SAMPLE_RATE = 0.1
 class Source(BaseModel):
     filename: str
     page: int
@@ -96,6 +130,34 @@ def home():
     return {
         "status": "running"
     }
+
+@app.get("/health")
+def health():
+
+    checks = {}
+
+    try:
+        supabase.table("documents").select("id").limit(1).execute()
+        checks["supabase"] = "ok"
+
+    except Exception:
+        logger.exception("Health check: Supabase unreachable")
+        checks["supabase"] = "error"
+
+    # Not making a live Groq call here to avoid burning API quota on
+    # every health-check ping; this only confirms the key is present,
+    # which the server would already have failed to start without.
+    checks["groq"] = "configured" if os.getenv("GROQ_API_KEY") else "missing"
+
+    status = "ok" if all(
+        v in ("ok", "configured") for v in checks.values()
+    ) else "degraded"
+
+    return {
+        "status": status,
+        "checks": checks
+    }
+
 def _require_valid_document_id(document_id: str):
     try:
         uuid.UUID(document_id)
@@ -111,6 +173,7 @@ def _require_valid_document_id(document_id: str):
 def chat(
     request: Request,
     chat_request: ChatRequest,
+    background_tasks: BackgroundTasks,
     user_id: str = Depends(verify_token)
 ):
 
@@ -153,6 +216,15 @@ def chat(
         raise HTTPException(
             status_code=503,
             detail="AI service unavailable"
+        )
+
+    if random.random() < FAITHFULNESS_SAMPLE_RATE:
+        background_tasks.add_task(
+            log_faithfulness_sample,
+            chat_request.document_id,
+            chat_request.question,
+            response.get("context", ""),
+            response["answer"]
         )
 
     return ChatResponse(
