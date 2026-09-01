@@ -18,6 +18,18 @@ from config import (
 )
 from hybrid_retriever import hybrid_retrieve
 
+GREETINGS = {
+    "hi", "hii", "hiii", "hello", "helo", "hey", "heya", "hiya", "yo",
+    "hola", "good morning", "good afternoon", "good evening",
+    "thanks", "thank you", "thx", "ty", "bye", "goodbye",
+}
+
+
+def _is_greeting(query):
+    normalized = query.strip().lower().strip("!.,? ")
+    return normalized in GREETINGS
+
+
 NO_ANSWER_PREFIXES = (
     "i don't know",
     "i do not know",
@@ -125,6 +137,21 @@ class RAGAssistant:
 
         if cache_key in self._answer_cache:
             return self._answer_cache[cache_key]
+
+        if _is_greeting(query):
+
+            doc_name = self.chunks[0]["filename"] if self.chunks else "this document"
+
+            result = {
+                "answer": f"Hi! Ask me anything about {doc_name} and I'll do my best to help.",
+                "sources": [],
+                "context": "",
+                "reranked_pages": []
+            }
+
+            self._answer_cache[cache_key] = result
+
+            return result
 
         query_embedding = embed_query(query)
 

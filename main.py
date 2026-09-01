@@ -311,6 +311,7 @@ def upload_pdf(
 
         temp_path=temp.name
 
+    document_id = None
 
     try:
 
@@ -359,6 +360,27 @@ def upload_pdf(
             user_id,
             path=temp_path,
             filename=safe_filename
+        )
+
+    except ValueError:
+
+        supabase.table("documents").delete().eq("id", document_id).execute()
+
+        raise HTTPException(
+            status_code=400,
+            detail="Could not extract readable text from this file. It may be a scanned or image-only document."
+        )
+
+    except Exception:
+
+        logger.exception("Document processing failed")
+
+        if document_id is not None:
+            supabase.table("documents").delete().eq("id", document_id).execute()
+
+        raise HTTPException(
+            status_code=503,
+            detail="Document processing failed. Please try again."
         )
 
     finally:
