@@ -1,6 +1,52 @@
 import { useState } from "react";
 import { Check, Copy, File } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { openDocumentAtPage } from "../lib/api";
+
+const markdownComponents = {
+  p: (props: React.ComponentProps<"p">) => (
+    <p className="mb-2 last:mb-0" {...props} />
+  ),
+  strong: (props: React.ComponentProps<"strong">) => (
+    <strong className="font-semibold text-white" {...props} />
+  ),
+  ul: (props: React.ComponentProps<"ul">) => (
+    <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0" {...props} />
+  ),
+  ol: (props: React.ComponentProps<"ol">) => (
+    <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0" {...props} />
+  ),
+  li: (props: React.ComponentProps<"li">) => (
+    <li className="leading-snug" {...props} />
+  ),
+  a: (props: React.ComponentProps<"a">) => (
+    <a
+      className="text-blue-400 underline hover:text-blue-300"
+      target="_blank"
+      rel="noreferrer"
+      {...props}
+    />
+  ),
+  code: (props: React.ComponentProps<"code">) => (
+    <code className="rounded bg-zinc-800 px-1 py-0.5 text-sm" {...props} />
+  ),
+  pre: (props: React.ComponentProps<"pre">) => (
+    <pre
+      className="mb-2 overflow-x-auto rounded-lg bg-zinc-800 p-3 text-sm last:mb-0"
+      {...props}
+    />
+  ),
+  h1: (props: React.ComponentProps<"h1">) => (
+    <h2 className="mb-1 mt-2 text-xl font-semibold text-white first:mt-0" {...props} />
+  ),
+  h2: (props: React.ComponentProps<"h2">) => (
+    <h3 className="mb-1 mt-2 text-lg font-semibold text-white first:mt-0" {...props} />
+  ),
+  h3: (props: React.ComponentProps<"h3">) => (
+    <h4 className="mb-1 mt-2 font-semibold text-white first:mt-0" {...props} />
+  ),
+};
 
 type Source = {
   filename: string;
@@ -54,8 +100,14 @@ export default function MessageBubble({
 
   return (
     <div className="group w-fit max-w-2xl">
-      <div className="text-lg text-white whitespace-pre-wrap break-words">
-        {message}
+      <div className="text-lg text-white break-words">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={markdownComponents}
+          disallowedElements={["img"]}
+        >
+          {message}
+        </ReactMarkdown>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">

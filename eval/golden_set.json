@@ -4,84 +4,96 @@
     "type": "content",
     "store_dir": "faiss_store/3d2711c2-f2cd-43a3-9496-bf44298f9680/1a77fd56-9c42-4a13-a38b-255fcfffc876",
     "question": "What is the decision rule of the Bayes classifier?",
-    "expected_page": 6
+    "expected_page": 6,
+    "expected_answer": "Choose the class Ck with maximum posterior probability P(Ck|x)."
   },
   {
     "id": "bayes-2",
     "type": "content",
     "store_dir": "faiss_store/3d2711c2-f2cd-43a3-9496-bf44298f9680/1a77fd56-9c42-4a13-a38b-255fcfffc876",
     "question": "What is the goal of Bayesian Decision Theory?",
-    "expected_page": 6
+    "expected_page": 6,
+    "expected_answer": "To minimize expected risk."
   },
   {
     "id": "bayes-3",
     "type": "content",
     "store_dir": "faiss_store/3d2711c2-f2cd-43a3-9496-bf44298f9680/1a77fd56-9c42-4a13-a38b-255fcfffc876",
     "question": "What is the formula for expected risk R(Ci|x)?",
-    "expected_page": 7
+    "expected_page": 7,
+    "expected_answer": "R(Ci|x) = sum over j of lambda_ij * P(Cj|x), where lambda_ij is the loss of deciding class Ci when the true class is Cj."
   },
   {
     "id": "bayes-4",
     "type": "content",
     "store_dir": "faiss_store/3d2711c2-f2cd-43a3-9496-bf44298f9680/1a77fd56-9c42-4a13-a38b-255fcfffc876",
     "question": "What is the univariate Gaussian density formula?",
-    "expected_page": 3
+    "expected_page": 3,
+    "expected_answer": "p(x) = 1/(sigma * sqrt(2*pi)) * e^(-(x-mu)^2 / (2*sigma^2))."
   },
   {
     "id": "bayes-5",
     "type": "content",
     "store_dir": "faiss_store/3d2711c2-f2cd-43a3-9496-bf44298f9680/1a77fd56-9c42-4a13-a38b-255fcfffc876",
     "question": "What is the multivariate Gaussian density formula?",
-    "expected_page": 4
+    "expected_page": 4,
+    "expected_answer": "p(x) = 1/((2*pi)^(d/2) * |Sigma|^(1/2)) * exp(-1/2 * (x-mu)^T * Sigma^-1 * (x-mu))."
   },
   {
     "id": "bayes-6",
     "type": "content",
     "store_dir": "faiss_store/3d2711c2-f2cd-43a3-9496-bf44298f9680/1a77fd56-9c42-4a13-a38b-255fcfffc876",
     "question": "What is the difference between discriminative and generative models?",
-    "expected_page": 10
+    "expected_page": 10,
+    "expected_answer": "Discriminative models compute a decision boundary directly, usually by modeling P(Ck|x) (example: Logistic Regression). Generative models instead model p(x|Ck) and P(Ck) (example: Gaussian classifier)."
   },
   {
     "id": "bayes-7",
     "type": "content",
     "store_dir": "faiss_store/3d2711c2-f2cd-43a3-9496-bf44298f9680/1a77fd56-9c42-4a13-a38b-255fcfffc876",
     "question": "Give an example of a discriminative model.",
-    "expected_page": 10
+    "expected_page": 10,
+    "expected_answer": "Logistic Regression."
   },
   {
     "id": "bayes-8",
     "type": "content",
     "store_dir": "faiss_store/3d2711c2-f2cd-43a3-9496-bf44298f9680/1a77fd56-9c42-4a13-a38b-255fcfffc876",
     "question": "Give an example of a generative model.",
-    "expected_page": 10
+    "expected_page": 10,
+    "expected_answer": "Gaussian classifier."
   },
   {
     "id": "bayes-9",
     "type": "content",
     "store_dir": "faiss_store/3d2711c2-f2cd-43a3-9496-bf44298f9680/1a77fd56-9c42-4a13-a38b-255fcfffc876",
     "question": "What is a discriminant function?",
-    "expected_page": 13
+    "expected_page": 13,
+    "expected_answer": "A function that assigns a score to each class; x is assigned to class Ci if gi(x) > gj(x) for all j not equal to i."
   },
   {
     "id": "bayes-10",
     "type": "content",
     "store_dir": "faiss_store/3d2711c2-f2cd-43a3-9496-bf44298f9680/1a77fd56-9c42-4a13-a38b-255fcfffc876",
     "question": "What is the linear discriminant function formula?",
-    "expected_page": 14
+    "expected_page": 14,
+    "expected_answer": "gk(x) = wk^T x + wk0."
   },
   {
     "id": "bayes-11",
     "type": "content",
     "store_dir": "faiss_store/3d2711c2-f2cd-43a3-9496-bf44298f9680/1a77fd56-9c42-4a13-a38b-255fcfffc876",
     "question": "What properties does the linear discriminant function have?",
-    "expected_page": 14
+    "expected_page": 14,
+    "expected_answer": "It forms a hyperplane, is computationally efficient, and works well for linearly separable data."
   },
   {
     "id": "bayes-12",
     "type": "content",
     "store_dir": "faiss_store/3d2711c2-f2cd-43a3-9496-bf44298f9680/1a77fd56-9c42-4a13-a38b-255fcfffc876",
     "question": "What is the probabilistic discriminant function for two classes, and what decision rule does it use?",
-    "expected_page": 15
+    "expected_page": 15,
+    "expected_answer": "P(C1|x) = sigma(w^T x), where sigma(z) = 1/(1+e^-z). Assign class C1 if P(C1|x) > 0.5."
   },
   {
     "id": "bayes-oos-1",

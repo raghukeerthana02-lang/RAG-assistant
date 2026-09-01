@@ -33,6 +33,8 @@ from slowapi.errors import RateLimitExceeded
 from fastapi import Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from eval_logging import log_faithfulness_sample
+from llm import LLMRateLimitedError
+from config import ALLOWED_ORIGINS, REDIS_URL
 
 import time
 from fastapi.middleware.cors import CORSMiddleware
@@ -50,12 +52,13 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 limiter=Limiter(
-    key_func=get_remote_address
+    key_func=get_remote_address,
+    storage_uri=REDIS_URL
 )
 app.state.limiter=limiter
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5174"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -208,6 +211,14 @@ def chat(
     try:
         response = rag.ask(chat_request.question)
 
+    except LLMRateLimitedError as e:
+        logger.warning("LLM rate limited: %s", e)
+
+        raise HTTPException(
+            status_code=429,
+            detail=str(e)
+        )
+
     except Exception:
         logger.exception(
             "RAG generation failed"
@@ -234,7 +245,7 @@ def chat(
 
 @app.post("/upload")
 @limiter.limit("5/minute")
-async def upload_pdf(
+def upload_pdf(
     request: Request,
     file: UploadFile = File(...),
     user_id: str = Depends(verify_token)
@@ -242,7 +253,7 @@ async def upload_pdf(
 
     safe_filename = os.path.basename(file.filename)
 
-    contents = await file.read()
+    contents = file.file.read()
 
     if len(contents) > MAX_FILE_SIZE:
         raise HTTPException(

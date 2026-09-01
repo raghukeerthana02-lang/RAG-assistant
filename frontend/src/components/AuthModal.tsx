@@ -3,6 +3,12 @@ import { createPortal } from "react-dom";
 import { Eye, EyeOff, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
+// Same pattern browsers use to validate <input type="email">. Catches
+// malformed input (no @, no domain, no TLD, stray whitespace) -- it
+// can't and isn't meant to verify the address is actually reachable.
+const EMAIL_REGEX =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -15,6 +21,7 @@ export default function AuthModal({ open, onClose }: Props) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   if (!open) return null;
@@ -25,15 +32,26 @@ export default function AuthModal({ open, onClose }: Props) {
     setPassword("");
     setShowPassword(false);
     setError(null);
+    setInfoMessage(null);
   }
 
   async function handleSubmit() {
     setError(null);
+    setInfoMessage(null);
+
+    const trimmedEmail = email.trim();
+
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    setEmail(trimmedEmail);
     setLoading(true);
 
     if (isLogin) {
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: trimmedEmail,
         password,
       });
     
@@ -46,7 +64,7 @@ export default function AuthModal({ open, onClose }: Props) {
       }
     } else {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: trimmedEmail,
         password,
         options: {
           data: {
@@ -68,6 +86,18 @@ export default function AuthModal({ open, onClose }: Props) {
       if (data.user?.identities?.length === 0) {
         setError(
           "An account with this email already exists. Please log in instead."
+        );
+        return;
+      }
+
+      // With email confirmation enabled, signUp succeeds but there's no
+      // active session yet -- the user still has to click the link in
+      // their inbox before they can actually log in.
+      if (!data.session) {
+        setPassword("");
+        setIsLogin(true);
+        setInfoMessage(
+          "Account created. Check your inbox for a confirmation link before logging in."
         );
         return;
       }
@@ -164,6 +194,9 @@ export default function AuthModal({ open, onClose }: Props) {
           </div>
 
           {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+          {infoMessage && (
+            <p className="mt-3 text-sm text-emerald-400">{infoMessage}</p>
+          )}
 
           <button
             onClick={handleSubmit}
@@ -179,6 +212,7 @@ export default function AuthModal({ open, onClose }: Props) {
               onClick={() => {
                 setIsLogin(!isLogin);
                 setError(null);
+                setInfoMessage(null);
               }}
               className="text-blue-400 hover:underline"
             >

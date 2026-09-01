@@ -18,5 +18,14 @@ python-pptx==1.0.2
 
 groq==1.6.0
 slowapi==0.1.10
-python-magic-bin==0.4.14
+
+# python-magic-bin bundles libmagic for Windows dev; on Linux (deploy
+# targets) use python-magic against the system libmagic1 package instead.
+python-magic-bin==0.4.14; sys_platform == "win32"
+python-magic==0.4.27; sys_platform != "win32"
+
 sentry-sdk==2.68.0
+
+# Only needed if REDIS_URL is set (shares rate-limit counters across
+# multiple worker processes/instances); unused otherwise.
+redis==5.2.1

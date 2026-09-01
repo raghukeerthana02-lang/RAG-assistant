@@ -48,6 +48,13 @@ function getErrorMessage(error: unknown): string {
     return "This chat's document is no longer available. Change its source to continue.";
   }
 
+  if (
+    error instanceof Error &&
+    error.message.startsWith("We're getting a lot of requests")
+  ) {
+    return error.message;
+  }
+
   return "Something went wrong. Please try again.";
 }
 

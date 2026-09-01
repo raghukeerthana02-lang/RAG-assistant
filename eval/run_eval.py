@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import time
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -10,12 +11,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from rag import RAGAssistant
-from eval_logging import judge_faithfulness
+from eval_logging import judge_faithfulness, judge_correctness, answer_relevancy
 
 GOLDEN_SET_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "golden_set.json"
 )
+
+# Pause between questions to stay well under Groq's per-minute token
+# limit -- each question makes up to 3 LLM calls (answer, faithfulness
+# judge, correctness judge).
+PACING_SECONDS = 8
 
 
 def run():
@@ -47,9 +53,23 @@ def run():
 
             retrieval_hit = item["expected_page"] in retrieved_pages
 
-            supported, verdict = judge_faithfulness(
+            reranked_pages = result["reranked_pages"]
+            relevant_in_topk = sum(
+                1 for p in reranked_pages if p == item["expected_page"]
+            )
+            precision_at_k = relevant_in_topk / len(reranked_pages)
+
+            relevancy = answer_relevancy(item["question"], result["answer"])
+
+            faithful, faithful_verdict = judge_faithfulness(
                 item["question"],
                 result["context"],
+                result["answer"]
+            )
+
+            correct, correctness_verdict = judge_correctness(
+                item["question"],
+                item["expected_answer"],
                 result["answer"]
             )
 
@@ -61,8 +81,12 @@ def run():
                     "expected_page": item["expected_page"],
                     "retrieved_pages": sorted(retrieved_pages),
                     "retrieval_hit": retrieval_hit,
-                    "faithful": supported,
-                    "verdict": verdict
+                    "precision_at_k": precision_at_k,
+                    "relevancy": relevancy,
+                    "faithful": faithful,
+                    "faithful_verdict": faithful_verdict,
+                    "correct": correct,
+                    "correctness_verdict": correctness_verdict
                 }
             )
 
@@ -77,18 +101,25 @@ def run():
                 }
             )
 
+        time.sleep(PACING_SECONDS)
+
     print("=" * 70)
     print("CONTENT QUESTIONS")
     print("=" * 70)
 
     for r in content_results:
 
-        status = "PASS" if r["retrieval_hit"] and r["faithful"] else "FAIL"
+        status = "PASS" if (
+            r["retrieval_hit"] and r["faithful"] and r["correct"]
+        ) else "FAIL"
 
         print(f"\n[{status}] {r['id']}: {r['question']}")
-        print(f"  retrieval: expected page {r['expected_page']}, got {r['retrieved_pages']}")
-        print(f"  faithful: {r['faithful']} ({r['verdict'][:100]})")
-        print(f"  answer: {r['answer'][:150]}")
+        print(f"  retrieval hit:  expected page {r['expected_page']}, got {r['retrieved_pages']}")
+        print(f"  precision@k:    {r['precision_at_k']:.2f}")
+        print(f"  relevancy:      {r['relevancy']:.2f}")
+        print(f"  faithful:       {r['faithful']} ({r['faithful_verdict'][:90]})")
+        print(f"  correct:        {r['correct']} ({r['correctness_verdict'][:90]})")
+        print(f"  answer:         {r['answer'][:150]}")
 
     print()
     print("=" * 70)
@@ -107,10 +138,17 @@ def run():
     total = len(content_results)
     retrieval_hits = sum(1 for r in content_results if r["retrieval_hit"])
     faithful_count = sum(1 for r in content_results if r["faithful"])
+    correct_count = sum(1 for r in content_results if r["correct"])
+    avg_precision = sum(r["precision_at_k"] for r in content_results) / total
+    avg_relevancy = sum(r["relevancy"] for r in content_results) / total
 
-    print(f"retrieval hit-rate: {retrieval_hits}/{total} ({retrieval_hits/total:.0%})")
-    print(f"faithfulness rate:  {faithful_count}/{total} ({faithful_count/total:.0%})")
-    print(f"edge cases logged:  {len(edge_case_results)} (review above)")
+    print(f"n = {total} content questions (golden set, single document)")
+    print(f"retrieval hit-rate (recall@k): {retrieval_hits}/{total} ({retrieval_hits/total:.0%})")
+    print(f"precision@k (avg):            {avg_precision:.2f}")
+    print(f"answer relevancy (avg cos-sim): {avg_relevancy:.2f}")
+    print(f"faithfulness rate:             {faithful_count}/{total} ({faithful_count/total:.0%})")
+    print(f"answer correctness rate:       {correct_count}/{total} ({correct_count/total:.0%})")
+    print(f"edge cases logged:             {len(edge_case_results)} (review above)")
 
 
 if __name__ == "__main__":

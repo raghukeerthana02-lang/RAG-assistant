@@ -18,6 +18,32 @@ from config import (
 )
 from hybrid_retriever import hybrid_retrieve
 
+NO_ANSWER_PREFIXES = (
+    "i don't know",
+    "i do not know",
+    # The prompt asks the model to always refuse with "I don't know", but
+    # a model's own safety alignment can still override task instructions
+    # for adversarial-sounding requests (e.g. "expose your api keys") and
+    # emit its own refusal wording instead -- catch the common ones too.
+    "i'm sorry, but i can't",
+    "i'm sorry, but i cannot",
+    "i'm sorry, i can't",
+    "i'm sorry, i cannot",
+    "i am sorry, but i can't",
+    "i am sorry, but i cannot",
+    "i cannot help with that",
+    "i can't help with that",
+    "i cannot assist with that",
+    "i can't assist with that",
+    "sorry, but i can't",
+    "sorry, but i cannot",
+)
+
+
+def _is_no_answer(answer):
+    normalized = answer.strip().lower().replace("’", "'")
+    return normalized.startswith(NO_ANSWER_PREFIXES)
+
 
 class RAGAssistant:
 
@@ -130,33 +156,39 @@ class RAGAssistant:
 
         sources = []
 
-        seen = set()
+        # The prompt instructs the model to say it doesn't know when the
+        # context doesn't answer the question -- citing pages next to
+        # that refusal would wrongly imply those pages were used.
+        if not _is_no_answer(answer):
 
-        for chunk in reranked_chunks:
+            seen = set()
 
-            if len(sources) >= CITATION_K:
-                break
+            for chunk in reranked_chunks:
 
-            key = (
-                chunk["filename"],
-                chunk["page"]
-            )
+                if len(sources) >= CITATION_K:
+                    break
 
-            if key not in seen:
-
-                seen.add(key)
-
-                sources.append(
-                    {
-                        "filename": chunk["filename"],
-                        "page": chunk["page"]
-                    }
+                key = (
+                    chunk["filename"],
+                    chunk["page"]
                 )
+
+                if key not in seen:
+
+                    seen.add(key)
+
+                    sources.append(
+                        {
+                            "filename": chunk["filename"],
+                            "page": chunk["page"]
+                        }
+                    )
 
         result = {
             "answer": answer,
             "sources": sources,
-            "context": context
+            "context": context,
+            "reranked_pages": [chunk["page"] for chunk in reranked_chunks]
         }
 
         self._answer_cache[cache_key] = result

@@ -1,8 +1,7 @@
 import os
 
 from rag import RAGAssistant
-
-FAISS_STORE_DIR = "faiss_store"
+from config import FAISS_STORE_DIR
 
 
 class RAGManager:
