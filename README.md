@@ -1,75 +1,96 @@
 # RAG Assistant
- 
-A production-ready, multi-user Retrieval Augmented Generation (RAG) application that lets users upload documents, chat with them, and receive AI-generated answers with source citations.
- 
-The system combines semantic search, keyword retrieval, reranking, authentication, secure storage, and persistent vector indexes into a complete document intelligence pipeline.
- 
+
+A production-hardened, multi-user Retrieval-Augmented Generation (RAG) application that lets users upload documents (PDF/DOCX/PPTX) and chat with them, getting AI-generated answers grounded in the document with clickable page citations.
+
+The system combines hybrid retrieval (dense + lexical), cross-encoder reranking, JWT authentication, per-user data isolation, and a set of deliberate hardening measures against prompt injection and markdown-based exfiltration into a single deployable pipeline.
+
 ---
- 
+
 ## Features
- 
+
 ### Authentication & User Management
-- Secure signup/login using Supabase Authentication
-- JWT-based authentication between frontend and backend
-- User-isolated documents and conversations
-- Protected API routes
+- Email/password signup & login via Supabase Auth, with email confirmation enforced through a custom SMTP provider (not Supabase's default rate-limited sender)
+- Client-side email format validation before any request is sent
+- JWT bearer tokens verified against Supabase on every protected route
+- Full per-user data isolation — every document query, storage path, and vector index is scoped to `user_id`
+- Duplicate-account detection with a clear message instead of a silent failure
+
 ### Document Management
-- Upload PDF, DOCX, and PPTX files
-- Secure document storage
-- User-specific document access
-- Persistent document metadata
-- Source switching between documents
+- Upload PDF, DOCX, and PPTX (10MB cap)
+- Extension allowlist **and** real MIME-type sniffing on the file bytes (not just trusting the extension or client-supplied `Content-Type`)
+- Per-user duplicate-filename check
+- Files stored in Supabase Storage, namespaced `user_id/document_id/filename`
+- File access via short-lived (60s) signed URLs, never raw storage paths
+- Switch which document a chat is chatting with, or filter chats by source document
+
 ### RAG Pipeline
-- Document text extraction
-- Intelligent chunking
-- Embedding generation
-- FAISS vector similarity search
-- BM25 keyword retrieval
-- Hybrid retrieval (dense + sparse)
-- Cross-encoder reranking
-- Context-aware answer generation
-- Source citations with page references
+- Text extraction per page/slide (PDF, DOCX, PPTX)
+- **Recursive character chunking** — splits on paragraph → line → sentence → word boundaries before ever falling back to a hard character cut, so chunks don't sever mid-sentence the way naive fixed-offset slicing does
+- Sentence-embedding generation (`sentence-transformers/all-MiniLM-L6-v2`)
+- **Hybrid retrieval**: FAISS dense similarity search + BM25 lexical search, merged and deduplicated by chunk ID
+- **Cross-encoder reranking** (`cross-encoder/ms-marco-MiniLM-L-6-v2`) on the merged candidate set for higher-precision top-k
+- Deterministic answer generation (`temperature=0`) via Groq — same context always produces the same phrasing
+- Page-level source citations, deduplicated and capped, correctly **suppressed when the model refuses to answer** (see Security below)
+- Per-document FAISS index + chunk metadata persisted to disk, reloaded instead of rebuilt on every chat
+- Per-session answer cache for repeated identical questions
+
 ### Chat Features
-- Chat with uploaded documents
-- Persistent conversations
-- Rename conversations
-- Delete conversations
-- Document-based chat filtering
+- Multiple conversations per user, each bound to the document it was created against
+- Chat history persisted **client-side** (`localStorage`, scoped per logged-in user, synced across tabs) — survives a page refresh but is local to the browser, not synced across devices
+- Rename, delete, and re-source (change which document a chat targets) conversations
+- Search/filter conversations by title or source document
+- Per-chat question limit (20) with a friendly cutoff message
+- Markdown-rendered answers (bold, lists, headings, code, links) instead of raw `**asterisks**`
+- Clickable citation chips that open the original document at the cited page
+- Copy-to-clipboard for answers
+- Responsive layout: collapsible sidebars on desktop, overlay drawers on mobile/tablet
+
+### Observability & Quality
+- Structured request logging (method, path, status, duration) on every request
+- Sentry error tracking on both frontend and backend, with PII collection disabled
+- Background faithfulness sampling — 10% of live chat responses get an async LLM-judge faithfulness check, logged without adding latency to the user-facing response
+- A golden-set eval harness (`eval/run_eval.py`) scoring retrieval hit-rate, precision@k, answer relevancy, faithfulness, and correctness — for regression-testing retrieval/prompt changes offline
+
 ### Security Features
-- JWT authentication
-- User ownership validation
-- Supabase Row Level Security (RLS)
-- Storage isolation
-- File extension validation
-- File size validation
-- MIME type validation
-- Rate limiting
-- Prompt injection protection
-- Environment-based secret management
+- JWT authentication + explicit ownership checks (`.eq("user_id", ...)`) on every document-touching route, not just table-level permissions
+- UUID validation on path parameters before they ever reach a database query
+- Row Level Security enabled on `documents`, `chunks`, `conversations`, and `messages` in Supabase as a defense-in-depth backstop (policy reference in [`supabase_rls.sql`](supabase_rls.sql)) — the backend's service-role key bypasses RLS by design, so this protects against a *future* direct-from-frontend query bypassing the API, not something relied on today
+- **Prompt-injection defenses**: retrieved context is explicitly framed as data-not-instructions in the system prompt; a single unified refusal phrase is enforced (`"I don't know."`) for both "no answer in context" and "asked to break the rules" cases; server-side detection also catches a model's own safety-alignment refusals (which can override task instructions on adversarial-sounding prompts) so citations never get attached to a non-answer
+- **Markdown-rendering hardening**: no raw HTML execution, images hard-disabled (closes a real "prompt injection → auto-loaded tracking image silently exfiltrates data" attack class), link URLs sanitized against `javascript:` and similar schemes
+- CORS locked to an explicit, environment-configurable origin allowlist (no wildcard)
+- Security headers: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`
+- Per-IP rate limiting on every route (`slowapi`), Redis-backed storage available via `REDIS_URL` for multi-worker deployments
+- Generic client-facing error messages; full detail only in server-side logs
+- Secrets never committed — `.env` is gitignored, `.env.example` ships placeholders only
+- Cross-platform dependency handling (`python-magic` vs `python-magic-bin` by platform marker) so the same `requirements.txt` works on Windows dev and Linux deploy targets without editing
+
 ---
- 
+
 ## Architecture
- 
+
 ### RAG Pipeline Flow (Query Path)
- 
+
 ```mermaid
 flowchart TD
-    A[User Query] --> B[FastAPI /chat endpoint]
-    B --> C[JWT Validation]
+    A[User Question] --> B["POST /chat"]
+    B --> C[JWT Verify + Ownership Check]
     C --> D[Query Embedding]
-    D --> E[FAISS Vector Search]
-    D --> F[BM25 Keyword Search]
-    E --> G[Hybrid Retrieval Merge]
+    D --> E[FAISS Dense Search]
+    D --> F[BM25 Lexical Search]
+    E --> G[Merge + Dedupe by chunk_id]
     F --> G
-    G --> H[Cross-Encoder Reranking]
-    H --> I[Prompt Builder<br/>context + citations]
-    I --> J[Groq LLM]
-    J --> K[Answer + Source Citations]
-    K --> L[Response to User]
+    G --> H[Cross-Encoder Rerank]
+    H --> I["Prompt Builder<br/>(context framed as data, not instructions)"]
+    I --> J["Groq LLM (temperature=0)"]
+    J --> K{Refused?}
+    K -->|"Yes — 'I don't know'"| L["Answer, no citations"]
+    K -->|No| M["Answer + page citations"]
+    L --> N[Response to User]
+    M --> N
 ```
- 
+
 ### Authentication Flow
- 
+
 ```mermaid
 sequenceDiagram
     participant U as User
@@ -77,174 +98,196 @@ sequenceDiagram
     participant S as Supabase Auth
     participant F as FastAPI Backend
     participant D as Supabase DB/Storage
- 
+
     U->>R: Enter credentials (signup/login)
-    R->>S: supabase.auth.signIn / signUp
-    S-->>R: JWT access token
+    R->>S: supabase.auth.signUp / signInWithPassword
+    S-->>R: JWT (session may be null until email confirmed)
     R->>F: API request + Authorization Bearer token
-    F->>S: Verify token (get_user)
-    S-->>F: Valid user identity
-    F->>D: Query scoped to user_id (RLS enforced)
-    D-->>F: User-owned data only
+    F->>S: verify_token -> supabase.auth.get_user(token)
+    S-->>F: Valid user identity (user_id)
+    F->>D: Query scoped to user_id (service role + app-level filter)
+    D-->>F: User-owned rows only
     F-->>R: Response
 ```
- 
+
 ### Document Upload Flow
- 
+
 ```mermaid
 flowchart LR
-    A[User Uploads File] --> B{Validation}
-    B -->|Extension, MIME type, Size| C[Reject if invalid]
-    B -->|Valid| D[Store in Supabase Storage]
-    D --> E[Extract Text<br/>PDF / DOCX / PPTX]
-    E --> F[Chunking]
-    F --> G[Embedding Generation]
-    G --> H[FAISS Index<br/>per user]
-    G --> I[BM25 Index<br/>per user]
-    D --> J[Save Metadata<br/>Supabase PostgreSQL]
+    A[User Uploads File] --> B{Validate}
+    B -->|"Extension + real MIME sniff + 10MB cap"| C[Reject if invalid]
+    B -->|Valid| D["Create DB record -> document_id"]
+    D --> E["Upload to Supabase Storage<br/>user_id/document_id/filename"]
+    E --> F["Extract Text<br/>(PDF / DOCX / PPTX)"]
+    F --> G[Recursive Chunking]
+    G --> H[Embed Chunks]
+    H --> I["FAISS Index<br/>(per user/doc)"]
+    G --> J["BM25 Index<br/>(per user/doc)"]
+    I --> K[Persist to disk]
+    J --> K
 ```
- 
-### Final Architecture Summary
- 
+
+### System Overview
+
 ```mermaid
 flowchart TD
-    U[User] --> RA[React Application]
-    RA -->|JWT| FA[FastAPI Backend]
-    FA --> AUTH[Authentication + Authorization]
+    U[User] --> RA[React Frontend]
+    RA -->|JWT Bearer| FA[FastAPI Backend]
+    FA --> AUTH[Auth + Ownership Checks]
     AUTH --> SB[Supabase]
     SB --> SBA[Auth]
-    SB --> SBD[PostgreSQL]
+    SB --> SBD["PostgreSQL<br/>(documents table + RLS)"]
     SB --> SBS[Storage]
     AUTH --> RAG[RAG Engine]
-    RAG --> CH[Chunking]
+    RAG --> CH[Recursive Chunking]
     RAG --> EMB[Embeddings]
     RAG --> FAISS[FAISS]
     RAG --> BM25[BM25]
-    RAG --> RR[Reranking]
-    RAG --> LLM[Groq LLM]
+    RAG --> RR[Cross-Encoder Rerank]
+    RR --> LLM["Groq LLM<br/>(temperature=0)"]
     LLM --> ANS[Answer + Citations]
 ```
- 
+
 ---
- 
+
 ## Tech Stack
- 
+
 **Frontend**
-- React
-- TypeScript
+- React + TypeScript
 - Tailwind CSS
-- Supabase Client
+- `react-markdown` + `remark-gfm` (sandboxed Markdown rendering)
+- Supabase JS client
+
 **Backend**
-- FastAPI
-- Python
-- Pydantic
+- FastAPI + Pydantic
+- `slowapi` (rate limiting)
+- Sentry SDK
+
 **Database & Storage**
-- Supabase PostgreSQL
+- Supabase PostgreSQL (with Row Level Security)
 - Supabase Storage
 - Supabase Authentication
+
 **AI / ML**
-- FAISS
-- BM25
-- Sentence Transformers
-- Cross-Encoder Reranking
+- FAISS (dense retrieval)
+- `rank_bm25` (lexical retrieval)
+- Sentence Transformers (`all-MiniLM-L6-v2`)
+- Cross-Encoder reranking (`ms-marco-MiniLM-L-6-v2`)
 - Groq LLM API
+
 ---
- 
+
 ## Project Structure
- 
+
 ```
 RAG-assistant/
-├── backend/
-│   ├── main.py
-│   ├── rag.py
-│   ├── rag_manager.py
-│   ├── document_loader.py
-│   ├── chunker.py
-│   ├── embedding.py
-│   ├── vector_store.py
-│   ├── bm25_store.py
-│   ├── reranker.py
-│   ├── prompt_builder.py
-│   ├── llm.py
-│   ├── auth.py
-│   └── storage.py
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── lib/
-│   │   └── api.ts
-│
+├── main.py                 # FastAPI app, routes, middleware
+├── auth.py                 # JWT verification
+├── config.py                # Chunking/retrieval/LLM/deployment settings (env-driven)
+├── rag.py                    # RAGAssistant: orchestrates the full ask() pipeline
+├── rag_manager.py           # Per-user/document RAGAssistant cache + disk persistence
+├── document_loader.py       # PDF/DOCX/PPTX text extraction
+├── chunker.py                # Recursive character chunking
+├── embedding.py             # Sentence-transformer embeddings
+├── vector_store.py          # FAISS index build/save/load
+├── bm25_store.py             # BM25 index + tokenization
+├── retriever.py              # FAISS similarity search
+├── hybrid_retriever.py      # Dense + lexical merge
+├── reranker.py                # Cross-encoder reranking
+├── prompt_builder.py        # System prompt construction
+├── llm.py                     # Groq client wrapper
+├── storage.py                 # Supabase Storage upload
+├── supabase_client.py       # Supabase client (service role)
+├── eval_logging.py           # LLM-judge faithfulness/correctness scoring
+├── eval/
+│   ├── run_eval.py           # Golden-set regression harness
+│   └── golden_set.json
+├── supabase_rls.sql          # Reference RLS policies
 ├── requirements.txt
 ├── .env.example
-└── README.md
+│
+└── frontend/
+    ├── src/
+    │   ├── components/       # AuthModal, Sidebar, ChatWindow, MessageBubble, etc.
+    │   ├── context/          # Auth context
+    │   └── lib/              # Supabase client, API wrapper
+    └── .env.example
 ```
- 
+
 ---
- 
+
 ## Local Setup
- 
+
 ### Backend
- 
+
 ```bash
-# Create environment
 python -m venv venv
- 
-# Activate
-venv\Scripts\activate
- 
-# Install dependencies
+venv\Scripts\activate        # Windows; use `source venv/bin/activate` on Linux/Mac
+
 pip install -r requirements.txt
- 
-# Create .env
-SUPABASE_URL=
-SUPABASE_SERVICE_KEY=
-GROQ_API_KEY=
- 
-# Run
+
+# Copy .env.example to .env and fill in:
+#   SUPABASE_URL, SUPABASE_SERVICE_KEY, GROQ_API_KEY
+#   ALLOWED_ORIGINS, REDIS_URL, FAISS_STORE_DIR, SENTRY_DSN are optional
+
 uvicorn main:app --reload
 ```
- 
+
 ### Frontend
- 
+
 ```bash
-# Install dependencies
+cd frontend
 npm install
- 
-# Run
+
+# Copy .env.example to .env and fill in:
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+#   VITE_API_URL, VITE_SENTRY_DSN are optional
+
 npm run dev
 ```
- 
+
 ---
- 
+
 ## API Overview
- 
+
 | Endpoint | Purpose |
 |---|---|
-| `POST /upload` | Upload documents |
-| `GET /documents` | Retrieve user documents |
-| `POST /chat` | Ask questions |
-| `GET /documents/{id}/file` | Access document |
- 
+| `GET /health` | Liveness + dependency check (Supabase, Groq key presence) |
+| `POST /upload` | Upload a document (PDF/DOCX/PPTX), triggers extraction + indexing |
+| `GET /documents` | List the current user's documents |
+| `GET /documents/{id}/file` | Get a short-lived signed URL to view the original file |
+| `POST /chat` | Ask a question against a document, returns answer + citations |
+
+All routes except `/` and `/health` require a valid Supabase JWT bearer token. There is currently no delete endpoint for documents or a server-side conversations table — chat rename/delete/re-source happens client-side only (see Chat Features above).
+
 ---
- 
+
+## Known Limitations / Deliberate Tradeoffs
+
+- Chat history lives in `localStorage`, not a database — it doesn't sync across devices, and clearing browser data clears chat history (documents themselves are unaffected, they're server-side).
+- RLS policies are a defense-in-depth backstop, not the primary access control — the backend's service-role key bypasses RLS, and correctness currently depends on consistent `user_id` filtering in application code.
+- No OCR or image understanding — a scanned page or embedded chart contributes no retrievable text (see Future Improvements).
+- Hybrid retrieval merge is a simple dedup-and-concatenate, not a fused-score method (e.g. RRF) — reranking is what actually re-orders the merged candidates.
+
+---
+
 ## Future Improvements
- 
+
+- OCR for scanned documents (Tesseract / cloud OCR)
+- Multimodal support for charts/diagrams (VLM captioning at ingest, or native multimodal embeddings)
 - Streaming responses
-- OCR support for scanned PDFs
-- Background document processing
-- Advanced analytics
-- Conversation memory improvements
+- Move chat history from `localStorage` to a proper `conversations`/`messages` backend
+- MMR-based reranking for better diversity against repetitive source content
+- Async/background document ingestion for larger files
+- Semantic or document-structure-aware chunking as an alternative to recursive character chunking
+
 ---
- 
+
 ## What I Learned Building This
- 
-- Designing a complete AI application architecture
-- Building production RAG pipelines
-- Authentication and authorization flows
-- Vector databases and retrieval systems
-- Hybrid search techniques
-- Backend API design
-- Secure document handling
-- Deployment workflows
+
+- Designing and hardening a full-stack AI application, not just the model-calling part
+- Hybrid retrieval (dense + lexical) and cross-encoder reranking in practice
+- Concrete prompt-injection failure modes — and that they require both prompt design *and* server-side verification, since a model's own alignment can override task instructions unpredictably
+- Why Markdown rendering of LLM output is itself an attack surface (auto-loaded images as a silent exfiltration channel), not just a display problem
+- Multi-tenant data isolation: JWT verification, ownership checks, and RLS as complementary layers, not substitutes for each other
+- Deployment-readiness work that has nothing to do with model quality: CORS, cross-platform dependencies, event-loop-blocking routes, rate-limit storage, and email deliverability
