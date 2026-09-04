@@ -26,6 +26,7 @@ import random
 import tempfile
 import shutil
 import magic
+import threading
 import uuid
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -118,6 +119,13 @@ ALLOWED_MIME = {
     "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 }
 MAX_FILE_SIZE = 10 * 1024 * 1024
+
+# Caps how many documents get chunked/embedded/indexed at once -- that step
+# is the CPU/RAM-heavy part of an upload. A bounded wait (rather than an
+# unbounded queue) means a request fails fast and cleanly instead of hanging
+# if something upstream is stuck holding the slot.
+UPLOAD_SEMAPHORE = threading.Semaphore(1)
+UPLOAD_QUEUE_TIMEOUT_SECONDS = 60
 FAITHFULNESS_SAMPLE_RATE = 0.1
 class Source(BaseModel):
     filename: str
@@ -353,14 +361,33 @@ def upload_pdf(
         )
 
 
-        # build RAG and persist it to the FAISS store
+        # Building the RAG index (chunking, embedding, FAISS) is the one
+        # CPU/RAM-heavy step -- cap how many run at once so concurrent
+        # uploads from different users don't multiply memory pressure.
+        # Bounded wait instead of an unlimited one: fail fast and clean
+        # rather than leaving a request hanging if the server is busy.
+        if not UPLOAD_SEMAPHORE.acquire(timeout=UPLOAD_QUEUE_TIMEOUT_SECONDS):
 
-        rag = rag_manager.load_document(
-            document_id,
-            user_id,
-            path=temp_path,
-            filename=safe_filename
-        )
+            supabase.table("documents").delete().eq("id", document_id).execute()
+
+            raise HTTPException(
+                status_code=503,
+                detail="We're processing another upload right now. Please try again in a moment."
+            )
+
+        try:
+
+            # build RAG and persist it to the FAISS store
+
+            rag = rag_manager.load_document(
+                document_id,
+                user_id,
+                path=temp_path,
+                filename=safe_filename
+            )
+
+        finally:
+            UPLOAD_SEMAPHORE.release()
 
     except ValueError:
 
@@ -370,6 +397,9 @@ def upload_pdf(
             status_code=400,
             detail="Could not extract readable text from this file. It may be a scanned or image-only document."
         )
+
+    except HTTPException:
+        raise
 
     except Exception:
 

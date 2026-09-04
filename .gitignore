@@ -6,3 +6,4 @@ frontend/dist/
 faiss_store/
 .vite/
 test_env/
+.env.production
