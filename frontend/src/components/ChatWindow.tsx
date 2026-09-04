@@ -240,10 +240,10 @@ export default function ChatWindow({
             {showScrollButton && (
               <button
                 onClick={() => scrollToBottom(true)}
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-800 p-2 text-zinc-200 shadow-lg shadow-black/40 transition hover:bg-zinc-700"
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-800 p-2.5 text-zinc-200 shadow-lg shadow-black/40 transition hover:bg-zinc-700"
                 aria-label="Scroll to bottom"
               >
-                <MoveDown size={20} />
+                <MoveDown size={26} />
               </button>
             )}
 

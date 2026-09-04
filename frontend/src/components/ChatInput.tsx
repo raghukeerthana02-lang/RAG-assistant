@@ -41,7 +41,7 @@ const QUESTION_LIMIT = 20;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof TypeError) {
-    return "Can't reach the server. Make sure the backend is running.";
+    return "Can't reach the server at the moment.";
   }
 
   if (error instanceof Error && error.message === "Document not found.") {

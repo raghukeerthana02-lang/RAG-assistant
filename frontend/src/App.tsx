@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Folder, Menu } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import ChatWindow from "./components/ChatWindow";
@@ -74,9 +74,22 @@ export default function App() {
   const [selectedConversation, setSelectedConversation] =
     useState<number | null>(null);
 
+  // Guards against a race between this load effect and the save effects
+  // below: when userId changes, React can run the save effects in the same
+  // flush using the *pre-load* conversations/selectedConversation values
+  // (the setConversations/setSelectedConversation calls here haven't been
+  // applied to state yet). Without this, that stale value gets written over
+  // the just-loaded data -- and with two tabs open, each tab's cross-tab
+  // "storage" listener re-broadcasts the other tab's momentary bad write
+  // back and forth, which can lock both tabs onto an empty conversation
+  // list instead of self-healing.
+  const skipNextSaveRef = useRef(false);
+
   // Load this user's chats whenever the logged-in user changes
   // (login, logout, or switching accounts on the same browser).
   useEffect(() => {
+    skipNextSaveRef.current = true;
+
     if (!userId) {
       setConversations([]);
       setSelectedConversation(null);
@@ -95,6 +108,10 @@ export default function App() {
   useEffect(() => {
     if (!userId) return;
 
+    if (skipNextSaveRef.current) {
+      return;
+    }
+
     localStorage.setItem(
       conversationsKey(userId),
       JSON.stringify(conversations)
@@ -103,6 +120,11 @@ export default function App() {
 
   useEffect(() => {
     if (!userId) return;
+
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return;
+    }
 
     localStorage.setItem(
       selectedConversationKey(userId),
