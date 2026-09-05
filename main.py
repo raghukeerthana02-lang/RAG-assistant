@@ -125,7 +125,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 # unbounded queue) means a request fails fast and cleanly instead of hanging
 # if something upstream is stuck holding the slot.
 UPLOAD_SEMAPHORE = threading.Semaphore(1)
-UPLOAD_QUEUE_TIMEOUT_SECONDS = 60
+UPLOAD_QUEUE_TIMEOUT_SECONDS = 180
 FAITHFULNESS_SAMPLE_RATE = 0.1
 class Source(BaseModel):
     filename: str
