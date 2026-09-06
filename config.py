@@ -19,7 +19,7 @@ ALLOWED_ORIGINS = [
     origin.strip()
     for origin in (
         os.getenv("ALLOWED_ORIGINS")
-        or "http://localhost:5174,http://rag-assistant-frontend-keerthana.s3-website-ap-southeast-2.amazonaws.com"
+        or "http://localhost:5174,http://rag-assistant-frontend-keerthana.s3-website-ap-southeast-2.amazonaws.com,https://rag-assist.com,https://rag-assistant-1bz.pages.dev"
     ).split(",")
     if origin.strip()
 ]
