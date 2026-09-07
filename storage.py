@@ -10,9 +10,17 @@ def upload_document(
     storage_path: str
 ):
 
-    mime_type = (
-        mimetypes.guess_type(file_path)[0]
-        or "application/octet-stream"
+    extension = file_path.lower().split(".")[-1]
+
+    mime_types = {
+        "pdf": "application/pdf",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    }
+
+    mime_type = mime_types.get(
+        extension,
+        "application/octet-stream"
     )
 
 
