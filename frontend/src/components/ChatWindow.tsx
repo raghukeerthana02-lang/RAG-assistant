@@ -147,13 +147,13 @@ export default function ChatWindow({
   return (
     <div className="h-full bg-gradient-to-b from-zinc-900 to-zinc-950 flex flex-col">
 
-      <div className="relative border-b border-zinc-800 px-16 py-4 xl:px-6 flex items-center justify-between gap-2">
+      <div className="relative sm:static border-b border-zinc-800 px-16 py-4 xl:px-6 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="text-xl font-semibold text-zinc-100">
             Chat
           </span>
 
-          <div className="group">
+          <div className="group sm:relative">
             <button
               type="button"
               aria-label="How to use"
@@ -162,7 +162,7 @@ export default function ChatWindow({
               <CircleHelp size={20} />
             </button>
 
-            <div className="pointer-events-none absolute left-4 right-4 top-full z-50 mt-2 rounded-xl border border-zinc-700 bg-zinc-800 p-4 text-left text-sm text-zinc-300 opacity-0 shadow-lg shadow-black/40 transition group-hover:pointer-events-auto group-hover:opacity-100 sm:left-1/2 sm:right-auto sm:w-72 sm:-translate-x-1/2">
+            <div className="pointer-events-none absolute left-4 right-4 top-full z-50 mt-2 rounded-xl border border-zinc-700 bg-zinc-800 p-4 text-left text-sm text-zinc-300 opacity-0 shadow-lg shadow-black/40 transition group-hover:pointer-events-auto group-hover:opacity-100 sm:left-0 sm:right-auto sm:w-72">
               <ul className="list-disc space-y-1.5 pl-4">
                 <li>Upload a document, then select it to get started</li>
                 <li>Start asking questions about the selected document.</li>
