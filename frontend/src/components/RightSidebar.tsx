@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { Eye, Folder, Upload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Eye, Folder, Loader2, Upload } from "lucide-react";
 import { fetchDocumentFile, getDocuments, uploadDocument } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
@@ -12,25 +12,29 @@ type Document = {
 
 type Props = {
   selectedDocument: string | null;
-  setSelectedDocument: React.Dispatch<React.SetStateAction<string | null>>;
+  onSelectDocument: (documentId: string) => void;
   documents: Document[];
   setDocuments: React.Dispatch<React.SetStateAction<Document[]>>;
-  setFilterDocument: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 export default function RightSidebar({
   selectedDocument,
-  setSelectedDocument,
+  onSelectDocument,
   documents,
   setDocuments,
-  setFilterDocument,
 }: Props) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   async function loadDocuments() {
-    const docs = await getDocuments();
-    setDocuments(docs);
+    try {
+      const docs = await getDocuments();
+      setDocuments(docs);
+    } catch (error) {
+      console.error("Failed to load documents:", error);
+      setDocuments([]);
+    }
   }
 
   async function handleOpenFile(doc: Document) {
@@ -82,25 +86,38 @@ export default function RightSidebar({
       return;
     }
 
+    setIsUploading(true);
     try {
       await uploadDocument(file);
-      loadDocuments();
+      await loadDocuments();
     } catch (error) {
       alert(
         error instanceof Error ? error.message : "Failed to upload document"
       );
+    } finally {
+      setIsUploading(false);
     }
   }
 
   return (
-    <div className="h-full bg-gradient-to-b from-zinc-950 to-zinc-900/60 p-5">
+    <div className="h-full bg-gradient-to-b from-zinc-950 to-zinc-900/60 p-5 flex flex-col overflow-hidden">
 
       <button
         onClick={() => fileInputRef.current?.click()}
-        className="mb-3 w-full rounded-xl bg-black border border-white/70 hover:bg-white/10 py-3 font-medium flex items-center justify-center gap-2 transition"
+        disabled={isUploading}
+        className="mb-3 w-full shrink-0 rounded-xl bg-black border border-white/70 hover:bg-white/10 py-3 font-medium flex items-center justify-center gap-2 transition disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        <Upload className="h-5 w-5" />
-        Upload Document
+        {isUploading ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Uploading...
+          </>
+        ) : (
+          <>
+            <Upload className="h-5 w-5" />
+            Upload Document
+          </>
+        )}
       </button>
 
       <input
@@ -111,19 +128,19 @@ export default function RightSidebar({
         onChange={handleUpload}
       />
 
-      <h2 className="mb-5 text-lg font-semibold">
+      <h2 className="mb-5 text-lg font-semibold shrink-0">
         Documents
       </h2>
 
-      <div className="space-y-2">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 -mr-2 pr-2">
+
+
+        
 
         {documents.map((doc) => (
           <div
             key={doc.id}
-            onClick={() => {
-              setSelectedDocument(doc.id);
-              setFilterDocument(doc.id);
-            }}
+            onClick={() => onSelectDocument(doc.id)}
             className={`flex cursor-pointer items-center gap-3 rounded-xl p-3 transition
               ${
                 selectedDocument === doc.id

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleHelp, Download, MoveDown } from "lucide-react";
+import { CircleHelp, Download, Folder, MoveDown } from "lucide-react";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import TypingIndicator from "./TypingIndicator";
@@ -19,7 +19,7 @@ type Message = {
 type Conversation = {
   id: number;
   title: string;
-  documentId: string;
+  documentId: string | null;
   messages: Message[];
 };
 
@@ -66,6 +66,13 @@ export default function ChatWindow({
   const messages = currentConversation?.messages ?? [];
 
   const isEmpty = selectedConversation === null || messages.length === 0;
+
+  // Whatever the user would actually be asking about if they hit send
+  // right now -- an existing (still empty) chat's own document, or
+  // whatever's globally selected for a chat that doesn't exist yet.
+  const noSourceSelected = currentConversation
+    ? currentConversation.documentId === null
+    : selectedDocument === null;
 
   const canDownload = !!currentConversation && messages.length > 0;
 
@@ -140,13 +147,13 @@ export default function ChatWindow({
   return (
     <div className="h-full bg-gradient-to-b from-zinc-900 to-zinc-950 flex flex-col">
 
-      <div className="border-b border-zinc-800 px-16 py-4 xl:px-6 flex items-center justify-between gap-2">
+      <div className="relative border-b border-zinc-800 px-16 py-4 xl:px-6 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="text-xl font-semibold text-zinc-100">
             Chat
           </span>
 
-          <div className="group relative">
+          <div className="group">
             <button
               type="button"
               aria-label="How to use"
@@ -155,7 +162,7 @@ export default function ChatWindow({
               <CircleHelp size={20} />
             </button>
 
-            <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 rounded-xl border border-zinc-700 bg-zinc-800 p-4 text-left text-sm text-zinc-300 opacity-0 shadow-lg shadow-black/40 transition group-hover:pointer-events-auto group-hover:opacity-100">
+            <div className="pointer-events-none absolute left-4 right-4 top-full z-50 mt-2 rounded-xl border border-zinc-700 bg-zinc-800 p-4 text-left text-sm text-zinc-300 opacity-0 shadow-lg shadow-black/40 transition group-hover:pointer-events-auto group-hover:opacity-100 sm:left-1/2 sm:right-auto sm:w-72 sm:-translate-x-1/2">
               <ul className="list-disc space-y-1.5 pl-4">
                 <li>Upload a document, then select it to get started</li>
                 <li>Start asking questions about the selected document.</li>
@@ -189,6 +196,19 @@ export default function ChatWindow({
           <h1 className="text-4xl font-semibold text-white text-center">
             Hi, what do you need today?
           </h1>
+
+          {noSourceSelected && (
+            // Below `sm`, mirrors ChatInput's own wrapper structure (an
+            // outer `p-4` around an inner full-width box) pixel-for-pixel
+            // to match its width on phones. At `sm` and up, reverts to
+            // the original compact, content-sized pill.
+            <div className="w-full p-4 -mt-4 -mb-4 sm:w-auto sm:p-0 sm:mt-0 sm:mb-0">
+              <div className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-full border bg-blue-700 border-blue-900 px-4 py-1.5 text-sm text-slate-300">
+                <Folder size={14} className="h-5 w-5 text-yellow-400 shrink-0" fill="currentColor"/>
+                No source selected — pick a document to get started
+              </div>
+            </div>
+          )}
 
           <div className="w-full">
             <ChatInput

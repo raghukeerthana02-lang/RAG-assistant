@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import UserMenu from "./UserMenu";
+import { findOrCreateDraftChat } from "../lib/conversations";
 
 type Message = {
   role: "user" | "assistant";
@@ -20,7 +21,7 @@ type Message = {
 type Conversation = {
   id: number;
   title: string;
-  documentId: string;
+  documentId: string | null;
   messages: Message[];
 };
 
@@ -40,7 +41,6 @@ type Props = {
   setConversations: React.Dispatch<
     React.SetStateAction<Conversation[]>
   >;
-  selectedDocument: string | null;
   setSelectedDocument: React.Dispatch<
     React.SetStateAction<string | null>
   >;
@@ -56,7 +56,6 @@ export default function Sidebar({
   selectedConversation,
   setSelectedConversation,
   setConversations,
-  selectedDocument,
   setSelectedDocument,
   documents,
   filterDocument,
@@ -95,43 +94,25 @@ export default function Sidebar({
 
   function handleNewChat() {
 
-    if (selectedConversation === null) {
-      // Already on the blank "new chat" canvas — nothing to do.
-      return;
-    }
+    // There is ever at most one draft (unsent) chat -- reuse it if it
+    // already exists instead of spawning a duplicate. "New Chat" always
+    // means a genuinely blank slate though, so if that draft already
+    // has a source picked, clear it back to sourceless here.
+    const { conversation, conversations: nextConversations } =
+      findOrCreateDraftChat(conversations);
 
-    if (selectedDocument === null) {
-      alert("Select a document first.");
-      return;
-    }
-
-    const existingEmptyChat = conversations.find(
-      (c) => c.documentId === selectedDocument && c.messages.length === 0
+    setConversations(
+      nextConversations.map((c) =>
+        c.id === conversation.id ? { ...c, documentId: null } : c
+      )
     );
+    setSelectedConversation(conversation.id);
+    setSelectedDocument(null);
 
-    if (existingEmptyChat) {
-      setSelectedConversation(existingEmptyChat.id);
-      setSelectedDocument(existingEmptyChat.documentId);
-      return;
-    }
-
-    const newConversation: Conversation = {
-
-      id: Date.now(),
-
-      title: "New Chat",
-
-      documentId: selectedDocument,
-
-      messages: [],
-    };
-
-    setConversations((prev) => [
-      newConversation,
-      ...prev,
-    ]);
-
-    setSelectedConversation(newConversation.id);
+    // A leftover document filter from whatever was selected before
+    // would otherwise hide this now-sourceless chat from the list --
+    // it wouldn't match, even though it's the one just selected.
+    setFilterDocument(null);
   }
 
   function startRename(chat: Conversation) {
@@ -155,6 +136,10 @@ export default function Sidebar({
   }
 
   function handleDelete(id: number) {
+    // A delete has to actually delete -- no auto-recreated replacement
+    // standing in for it. The "always land on a real chat" guarantee is
+    // strictly a login/onboarding nicety (see App.tsx), not a rule that
+    // should fight the user on every deletion.
     setConversations((prev) => prev.filter((c) => c.id !== id));
 
     if (selectedConversation === id) {
@@ -297,8 +282,10 @@ export default function Sidebar({
               <div className="flex items-center gap-1.5 text-xs text-zinc-400 mt-1 pl-4">
                 <FilePenLine className="h-3.5 w-3.5 text-white shrink-0" />
                 <span className="truncate">
-                  {documents.find((d) => d.id === chat.documentId)
-                    ?.filename ?? "Document unavailable"}
+                  {chat.documentId === null
+                    ? "No source"
+                    : documents.find((d) => d.id === chat.documentId)
+                        ?.filename ?? "Document unavailable"}
                 </span>
               </div>
 

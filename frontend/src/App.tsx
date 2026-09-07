@@ -4,6 +4,7 @@ import Sidebar from "./components/Sidebar";
 import ChatWindow from "./components/ChatWindow";
 import RightSidebar from "./components/RightSidebar";
 import { useAuth } from "./context/AuthContext";
+import { findOrCreateDraftChat } from "./lib/conversations";
 const CONVERSATIONS_KEY = "rag-assistant:conversations";
 const SELECTED_CONVERSATION_KEY = "rag-assistant:selected-conversation";
 
@@ -45,7 +46,7 @@ export type Message = {
 export type Conversation = {
   id: number;
   title: string;
-  documentId: string;
+  documentId: string | null;
   messages: Message[];
 };
 
@@ -74,6 +75,9 @@ export default function App() {
   const [selectedConversation, setSelectedConversation] =
     useState<number | null>(null);
 
+  const [filterDocument, setFilterDocument] =
+    useState<string | null>(null);
+
   // Guards against a race between this load effect and the save effects
   // below: when userId changes, React can run the save effects in the same
   // flush using the *pre-load* conversations/selectedConversation values
@@ -90,19 +94,44 @@ export default function App() {
   useEffect(() => {
     skipNextSaveRef.current = true;
 
+    // Neither of these persist per-user, and a stale value left over
+    // from whoever was previously logged in in this same tab must not
+    // silently filter the new user's freshly-loaded chat list down to
+    // nothing (a chat can look "created but invisible" this way).
+    setSelectedDocument(null);
+    setFilterDocument(null);
+
     if (!userId) {
       setConversations([]);
       setSelectedConversation(null);
       return;
     }
 
-    setConversations(
-      loadFromStorage<Conversation[]>(conversationsKey(userId), [])
+    const loadedConversations = loadFromStorage<Conversation[]>(
+      conversationsKey(userId),
+      []
     );
 
-    setSelectedConversation(
-      loadFromStorage<number | null>(selectedConversationKey(userId), null)
+    const loadedSelected = loadFromStorage<number | null>(
+      selectedConversationKey(userId),
+      null
     );
+
+    if (loadedSelected !== null) {
+      // Returning to wherever this user left off.
+      setConversations(loadedConversations);
+      setSelectedConversation(loadedSelected);
+      return;
+    }
+
+    // Nothing to return to (brand-new account, or they'd left off on the
+    // blank canvas) -- never land there bare. Always point at a real,
+    // visible draft chat instead, creating one if none exists yet.
+    const { conversation, conversations: nextConversations } =
+      findOrCreateDraftChat(loadedConversations);
+
+    setConversations(nextConversations);
+    setSelectedConversation(conversation.id);
   }, [userId]);
 
   useEffect(() => {
@@ -151,9 +180,6 @@ export default function App() {
 
   const [documents, setDocuments] = useState<Document[]>([]);
 
-  const [filterDocument, setFilterDocument] =
-    useState<string | null>(null);
-
   // Re-apply the correct default whenever the viewport crosses the
   // desktop/mobile boundary live (window resize, devtools docking,
   // or a tablet being rotated) instead of only checking once at mount.
@@ -169,6 +195,25 @@ export default function App() {
     return () => mql.removeEventListener("change", handleChange);
   }, []);
 
+  function handleSelectDocument(documentId: string) {
+    setSelectedDocument(documentId);
+    setFilterDocument(documentId);
+
+    // Picking a document never creates a chat, and it never reaches
+    // out to repurpose some idle draft sitting elsewhere in the list --
+    // most of the time this is just browsing/filtering. It only
+    // attaches as a source when the chat you already have open is
+    // itself still a draft (unsent); otherwise this click is pure
+    // filtering and the chat list is left untouched.
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === selectedConversation && c.messages.length === 0
+          ? { ...c, documentId }
+          : c
+      )
+    );
+  }
+
   function openLeftMobile() {
     setLeftOpen(true);
     setRightOpen(false);
@@ -180,7 +225,7 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-zinc-950 via-zinc-950 to-black text-zinc-100 flex overflow-hidden relative">
+    <div className="h-dvh bg-gradient-to-br from-zinc-950 via-zinc-950 to-black text-zinc-100 flex overflow-hidden relative">
 
       {/* Mobile hamburger - left (hidden once its panel is open) */}
       <button
@@ -219,12 +264,12 @@ export default function App() {
       {/* LEFT */}
 
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-zinc-800 bg-zinc-950 transition-transform duration-300 xl:relative xl:z-auto xl:translate-x-0 xl:transition-[width] xl:duration-300 ${
+        className={`fixed inset-y-0 left-0 z-50 w-80 border-r border-zinc-800 bg-zinc-950 transition-transform duration-300 xl:relative xl:z-auto xl:translate-x-0 xl:transition-[width] xl:duration-300 ${
           leftOpen ? "translate-x-0" : "-translate-x-full"
-        } ${leftOpen ? "xl:w-72" : "xl:w-0"}`}
+        } ${leftOpen ? "xl:w-80" : "xl:w-0"}`}
       >
         <div
-          className={`h-full w-72 overflow-hidden ${
+          className={`h-full w-80 overflow-hidden ${
             leftOpen ? "" : "xl:invisible"
           }`}
         >
@@ -233,7 +278,6 @@ export default function App() {
             setConversations={setConversations}
             selectedConversation={selectedConversation}
             setSelectedConversation={setSelectedConversation}
-            selectedDocument={selectedDocument}
             setSelectedDocument={setSelectedDocument}
             documents={documents}
             filterDocument={filterDocument}
@@ -280,10 +324,9 @@ export default function App() {
         >
           <RightSidebar
             selectedDocument={selectedDocument}
-            setSelectedDocument={setSelectedDocument}
+            onSelectDocument={handleSelectDocument}
             documents={documents}
             setDocuments={setDocuments}
-            setFilterDocument={setFilterDocument}
           />
         </div>
 

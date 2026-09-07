@@ -17,7 +17,7 @@ type Message = {
 type Conversation = {
   id: number;
   title: string;
-  documentId: string;
+  documentId: string | null;
   messages: Message[];
 };
 
@@ -234,7 +234,7 @@ export default function ChatInput({
   if (limitReached) {
     return (
       <div className="p-4">
-        <div className="w-[90%] max-w-4xl mx-auto rounded-3xl border border-amber-500/30 bg-zinc-800 px-5 py-4 text-center text-sm text-amber-300">
+        <div className="w-full sm:w-[90%] max-w-4xl mx-auto rounded-3xl border border-amber-500/30 bg-zinc-800 px-5 py-4 text-center text-sm text-amber-300">
           Sorry, the limit of {QUESTION_LIMIT} questions has been reached for
           this chat. Please start a new chat to continue.
         </div>
@@ -246,7 +246,7 @@ export default function ChatInput({
     <div className="p-4">
 
       <div
-        className={`w-[90%] max-w-4xl mx-auto rounded-3xl bg-zinc-800 shadow-lg shadow-black/30 ${
+        className={`w-full sm:w-[90%] max-w-4xl mx-auto rounded-3xl bg-zinc-800 shadow-lg shadow-black/30 ${
           isMultiline
             ? "flex flex-col"
             : "flex items-center gap-2 px-3 py-2"

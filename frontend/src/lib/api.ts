@@ -16,7 +16,7 @@ export async function apiFetch(
 
     const token = data.session?.access_token;
     if(!token){
-        throw new Error("No active sessions");
+        throw new Error("Please login");
     }
 
 
@@ -72,6 +72,12 @@ export async function openDocumentAtPage(documentId: string, page: number) {
 
 export async function getDocuments() {
     const response = await apiFetch("/documents");
+
+    if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.detail ?? "Failed to load documents");
+    }
+
     return await response.json();
 }
 
