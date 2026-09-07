@@ -262,32 +262,177 @@ All routes except `/` and `/health` require a valid Supabase JWT bearer token. T
 
 ---
 
-## Known Limitations / Deliberate Tradeoffs
+## Deployment
 
-- Chat history lives in `localStorage`, not a database — it doesn't sync across devices, and clearing browser data clears chat history (documents themselves are unaffected, they're server-side).
-- RLS policies are a defense-in-depth backstop, not the primary access control — the backend's service-role key bypasses RLS, and correctness currently depends on consistent `user_id` filtering in application code.
-- No OCR or image understanding — a scanned page or embedded chart contributes no retrievable text (see Future Improvements).
-- Hybrid retrieval merge is a simple dedup-and-concatenate, not a fused-score method (e.g. RRF) — reranking is what actually re-orders the merged candidates.
+The application is deployed using a production CI/CD workflow.
 
----
+### Architecture
 
-## Future Improvements
+```
+                 Git Push
+                    |
+        +-----------+------------+
+        |                        |
+        v                        v
 
-- OCR for scanned documents (Tesseract / cloud OCR)
-- Multimodal support for charts/diagrams (VLM captioning at ingest, or native multimodal embeddings)
-- Streaming responses
-- Move chat history from `localStorage` to a proper `conversations`/`messages` backend
-- MMR-based reranking for better diversity against repetitive source content
-- Async/background document ingestion for larger files
-- Semantic or document-structure-aware chunking as an alternative to recursive character chunking
+ GitHub Actions            Cloudflare Pages
+        |                        |
+        |                        |
+ Docker Build              React Build
+        |                        |
+ Docker Hub                Global CDN
+        |
+        |
+        v
 
----
+ AWS EC2 Instance
+        |
+        |
+ Docker Container
+        |
+        |
+ Nginx Reverse Proxy
+        |
+        |
+ https://api.rag-assist.com
+```
 
-## What I Learned Building This
+### Backend Deployment
 
-- Designing and hardening a full-stack AI application, not just the model-calling part
-- Hybrid retrieval (dense + lexical) and cross-encoder reranking in practice
-- Concrete prompt-injection failure modes — and that they require both prompt design *and* server-side verification, since a model's own alignment can override task instructions unpredictably
-- Why Markdown rendering of LLM output is itself an attack surface (auto-loaded images as a silent exfiltration channel), not just a display problem
-- Multi-tenant data isolation: JWT verification, ownership checks, and RLS as complementary layers, not substitutes for each other
-- Deployment-readiness work that has nothing to do with model quality: CORS, cross-platform dependencies, event-loop-blocking routes, rate-limit storage, and email deliverability
+The backend is containerized using Docker.
+
+**Deployment flow:**
+
+1. Developer pushes changes to `main`
+2. GitHub Actions builds a new Docker image
+3. Image is pushed to Docker Hub
+4. Deployment workflow connects to EC2
+5. Existing container is replaced with the latest image
+6. Nginx continues routing HTTPS traffic to FastAPI
+
+**Technologies:**
+
+- Docker
+- GitHub Actions
+- Docker Hub
+- AWS EC2
+- Nginx
+- Cloudflare DNS
+
+### Frontend Deployment
+
+The frontend is deployed through Cloudflare Pages.
+
+**Deployment flow:**
+
+1. Push frontend changes to GitHub
+2. Cloudflare Pages detects changes
+3. Builds React/Vite application
+4. Deploys static assets globally through Cloudflare CDN
+
+**Technologies:**
+
+- React
+- TypeScript
+- Vite
+- Cloudflare Pages
+
+## Production Features Completed
+
+- [x] Multi-user authentication
+- [x] JWT protected backend routes
+- [x] User-scoped document storage
+- [x] PDF/DOCX/PPTX ingestion
+- [x] Hybrid retrieval pipeline
+- [x] FAISS vector search
+- [x] BM25 lexical retrieval
+- [x] Cross encoder reranking
+- [x] Prompt injection defenses
+- [x] Markdown rendering security
+- [x] Rate limiting support
+- [x] Structured logging
+- [x] Sentry integration
+- [x] Evaluation harness
+- [x] Dockerized backend
+- [x] Automated deployment pipeline
+- [x] HTTPS production deployment
+
+## Current Limitations
+
+The current system intentionally keeps some production improvements for future iterations.
+
+### Background Processing
+
+Currently, document ingestion happens synchronously.
+
+**Future improvement:**
+
+```
+Upload
+  |
+  v
+Queue Job
+  |
+  v
+Worker Process
+  |
+  +--> Extract text
+  |
+  +--> Generate embeddings
+  |
+  +--> Build indexes
+  |
+  v
+Notify user
+```
+
+**Planned technologies:**
+
+- Redis
+- Celery
+- Background workers
+
+**Benefits:**
+
+- Larger document support
+- Better user experience
+- Multiple concurrent uploads
+- More scalable architecture
+
+## Future Roadmap
+
+**Phase 1: Async Processing**
+- [ ] Redis task queue
+- [ ] Celery workers
+- [ ] Background document ingestion
+- [ ] Upload progress tracking
+
+**Phase 2: Retrieval Improvements**
+- [ ] Reciprocal Rank Fusion (RRF)
+- [ ] Better hybrid scoring
+- [ ] Query rewriting
+- [ ] Context compression
+
+**Phase 3: Storage Improvements**
+- [ ] Server-side conversation persistence
+- [ ] Conversation history database
+- [ ] Multi-device synchronization
+
+**Phase 4: Production Scaling**
+- [ ] Multiple backend workers
+- [ ] Container orchestration
+- [ ] Better observability dashboards
+- [ ] Automated testing pipeline
+
+## Engineering Learnings
+
+Building this project provided experience with:
+
+- Designing end-to-end AI applications
+- Production RAG architecture
+- Retrieval evaluation
+- AI safety considerations
+- Authentication and authorization
+- Cloud deployment
+- CI/CD automation
+- Debugging distributed systems
